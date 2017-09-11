@@ -7,6 +7,7 @@
 
 
 #include <cstdint>
+#include <string>
 
 class peripheral {
 
@@ -22,6 +23,11 @@ protected:
      * and greater than the start_address
      */
     uint32_t end_address;
+
+    /**
+     * the name of this peripheral
+     */
+    std::string name;
 
 public:
 
@@ -67,13 +73,35 @@ public:
      * returns the start address of the peripheral
      * @return the start address
      */
-    inline uint32_t get_start_address() { return start_address; }
+    inline uint32_t get_start_address() const { return start_address; }
 
     /**
      * returns the end address of the peripheral
      * @return the end address
      */
-    inline uint32_t get_end_address() { return end_address; }
+    inline uint32_t get_end_address() const { return end_address; }
+
+    const std::string &get_name() const {
+        return name;
+    }
+
+    /**
+     * returns true if the peripheral p is in conflict with this peripheral
+     * @param p
+     * @return true if it is false otherwise
+     */
+    inline bool in_conflict(peripheral* p){
+        return (p->start_address >= this->start_address && p->start_address <= this->end_address) ||
+               (this->start_address >= p->start_address && this->start_address <= p->end_address);
+    }
+
+    /**
+     * true if address is in the peripheral
+     */
+    inline bool in_range(uint32_t address) {
+        return this->start_address >= address && address < this->end_address;
+    }
+
 };
 
 

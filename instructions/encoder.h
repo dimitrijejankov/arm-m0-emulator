@@ -173,8 +173,6 @@ class encoder {
      */
     std::array<int16_t, 2> blxOp(int32_t address, bool exchange);
 
-    int16_t
-
 };
 
 

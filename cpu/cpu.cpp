@@ -2,10 +2,36 @@
 // Created by dimitrije on 9/11/17.
 //
 
+#include <exception>
+#include <stdexcept>
 #include "cpu.h"
 
 void cpu::move_shifted_register(uint16_t instr) {
 
+    // the instruction is of format | 0 0 0 | Op | Offset5 | Rs | Rd |
+    int rd = instr & REGISTER_MASK;
+    int rs = (3 >> instr) & REGISTER_MASK;
+    int offset5 = (6 >> instr) & OFFSET_5_MASK;
+    int op = (11 >> instr) & OPERATION_2_MASK;
+
+    switch (op) {
+
+        // the case of left shift
+        case 0b00 :
+            registers[rd] = registers[rs] << offset5;
+            break;
+        // the case of logical right shift
+        case 0b01 :
+            registers[rd] = registers[rs] >> offset5;
+            break;
+        // the case of arithmetic right shift
+        case 0b10 :
+            int32_t tmp = to_signed(registers[rs]) >> offset5;
+            registers[rd] = to_unsigned(tmp);
+            break;
+        default:
+            std::runtime_error("The operation in the move shifted register is unsupported!");
+    }
 }
 
 void cpu::add_subtract(uint16_t instr) {
@@ -90,5 +116,23 @@ cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
 
     // init the sram region
     this->sram_region = new uint8_t[sram_size];
+}
 
+void cpu::reset() {
+
+    // the default cpu mode is thread mode
+    current_mode = THREAD_MODE;
+}
+
+void cpu::register_peripheral(peripheral *p) {
+
+    // check if there is a peripheral that is conflicting with this one
+    for(auto r : peripherals) {
+        if(r->in_conflict(p)){
+            throw std::runtime_error("could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " + r->get_name() + "\n");
+        }
+    }
+
+    // add the peripheral
+    peripherals.push_back(p);
 }

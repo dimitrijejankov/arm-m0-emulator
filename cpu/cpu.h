@@ -5,18 +5,70 @@
 #ifndef EMULATOR_M0_DECODER_H
 #define EMULATOR_M0_DECODER_H
 
-
 #include <cstdint>
+#include <vector>
 #include "registers.h"
+#include "../pheripherals/peripheral.h"
 
 enum mode {
     THREAD_MODE,
     HANDLER_MODE
 };
 
+struct psr {
+
+    /**
+     * Exception number
+     */
+    uint8_t exception_number;
+
+    /**
+     * Thumb state bit
+     */
+    uint8_t t;
+
+    /**
+     * Overflow flag
+     */
+    uint8_t v;
+
+    /**
+     * Carry or borrow flag
+     */
+    uint8_t c;
+
+    /**
+     * Zero flag
+     */
+    uint8_t z;
+
+    /**
+     * Negative flag
+     */
+    uint8_t n;
+};
+
 class cpu {
 
 private:
+
+    const uint8_t REGISTER_MASK = 0b0000000000000111;
+    const uint8_t OFFSET_5_MASK = 0b0000000000011111;
+    const uint8_t OPERATION_2_MASK = 0b0000000000000011;
+
+    /**
+     * returns the input value as a signed value
+     * @param value - the value we want to have a signed reference
+     * @return the signed reference
+     */
+    inline int32_t& to_signed(uint32_t &value) { return *((int32_t*)&value); }
+
+    /**
+     * returns the input value as a unsigned value
+     * @param value - the value we want to have a signed reference
+     * @return the signed reference
+     */
+    inline uint32_t& to_unsigned(int32_t &value) { return *((uint32_t*)&value); }
 
     /**
      * The current cpu mode can be either THREAD_MODE or HANDLER_MODE
@@ -47,10 +99,15 @@ private:
     uint32_t registers[15];
 
     /**
+     * Program Status Register (PSR)
+     */
+    psr psr_register;
+
+    /**
      * Inactive stack pointer - used to swap between the PSP and MSP this values is used for the stack pointer that is
      * currently inactive
      */
-    uint32_t ISP;
+    uint32_t isp;
 
     /**
      * The memory in on-chip flash ranges from 0x00000000 to 0x1FFFFFFF
@@ -63,12 +120,14 @@ private:
     uint8_t *sram_region;
 
     /**
+     * The list of all peripheral this cpu has
+     */
+    std::vector<peripheral*> peripherals;
+
+    /**
      * Initializes the cpu to the state it is supposed to boot up
      */
-    void reset() {
-
-        registers[SP] = 0;
-    }
+    void reset();
 
     /**
      * Decodes the 16 bit instruction of the format
@@ -297,6 +356,12 @@ public:
      * @param sram_size the sram size in bytes
      */
     cpu(uint32_t flash_size, uint32_t sram_size);
+
+    /**
+     * Registers a peripheral to the cpu
+     * @param p
+     */
+    void register_peripheral(peripheral *p);
 };
 
 
