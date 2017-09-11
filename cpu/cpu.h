@@ -7,8 +7,68 @@
 
 
 #include <cstdint>
+#include "registers.h"
+
+enum mode {
+    THREAD_MODE,
+    HANDLER_MODE
+};
 
 class cpu {
+
+private:
+
+    /**
+     * The current cpu mode can be either THREAD_MODE or HANDLER_MODE
+     *
+     * THREAD_MODE  - is used to execute application software.
+     * The processor enters Thread mode when it comes out of reset.
+     *
+     * HANDLER_MODE - is used to handle exceptions.
+     * The processor returns to Thread mode when it has finished all exception processing.
+     */
+    mode current_mode;
+
+    /**
+     * ARM M0 has 15 registers
+     *
+     * Registers R0-R7 are the low general purpose registers
+     *
+     * Registers R7-R8 are the the high general purpose registers
+     *
+     * Register R13 is the stack pointer - The main stack pointer (MSP) used in HANDLER_MODE or if set in the
+     * CONTROL_REGISTER during the THREAD_MODE. The processor stack (PSP) used only during the THREAD_MODE if
+     * set in the CONTROL_REGISTER.
+     *
+     * Register R14 is the link register (LR)
+     *
+     * Register R15 is the program counter (PC)
+     */
+    uint32_t registers[15];
+
+    /**
+     * Inactive stack pointer - used to swap between the PSP and MSP this values is used for the stack pointer that is
+     * currently inactive
+     */
+    uint32_t ISP;
+
+    /**
+     * The memory in on-chip flash ranges from 0x00000000 to 0x1FFFFFFF
+     */
+    uint8_t *code_region;
+
+    /**
+     * The region in on-chip SRAM rages from 0x20000000 to 0x3FFFFFFF
+     */
+    uint8_t *sram_region;
+
+    /**
+     * Initializes the cpu to the state it is supposed to boot up
+     */
+    void reset() {
+
+        registers[SP] = 0;
+    }
 
     /**
      * Decodes the 16 bit instruction of the format
@@ -228,6 +288,15 @@ class cpu {
      * @param instr
      */
     void long_branch_with_link(uint16_t instr);
+
+public:
+
+    /**
+     * Creates an instance of the cpu
+     * @param flash_size the size of the flash size in bytes
+     * @param sram_size the sram size in bytes
+     */
+    cpu(uint32_t flash_size, uint32_t sram_size);
 };
 
 
