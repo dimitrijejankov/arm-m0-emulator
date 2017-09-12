@@ -29,7 +29,7 @@ void cpu::move_shifted_register(uint16_t instr) {
 
             break;
         }
-        // the case of logical right shift
+            // the case of logical right shift
         case 0b01 : {
             // logical shift the source register to the right by the offset
             registers[rd] = registers[rs] >> offset5;
@@ -41,7 +41,7 @@ void cpu::move_shifted_register(uint16_t instr) {
 
             break;
         }
-        // the case of arithmetic right shift
+            // the case of arithmetic right shift
         case 0b10 : {
             // arithmetic shift the source register to the right by the offset
             int32_t tmp = to_signed(registers[rs]) >> offset5;
@@ -100,7 +100,7 @@ void cpu::move_compare_add_subtract_immediate(uint16_t instr) {
 
             break;
         }
-        // compare contents of Rd with 8-bit immediate value.
+            // compare contents of Rd with 8-bit immediate value.
         case 0b01 : {
 
             // store the lhs for reuse
@@ -117,7 +117,7 @@ void cpu::move_compare_add_subtract_immediate(uint16_t instr) {
 
             break;
         }
-        // add 8-bit immediate value to contents of Rd and place the result in Rd.
+            // add 8-bit immediate value to contents of Rd and place the result in Rd.
         case 0b10: {
             // store the lhs for reuse
             uint32_t tmp = registers[rd];
@@ -133,7 +133,7 @@ void cpu::move_compare_add_subtract_immediate(uint16_t instr) {
 
             break;
         }
-        // subtract 8-bit immediate value from contents of Rd and place the result in Rd.
+            // subtract 8-bit immediate value from contents of Rd and place the result in Rd.
         case 0b11: {
             // store the lhs for reuse
             uint32_t tmp = registers[rd];
@@ -160,8 +160,7 @@ void cpu::alu_operations(uint16_t instr) {
     int rs = (instr >> 3) & REGISTER_MASK;
     int op = (instr >> 6) & OPERATION_3_MASK;
 
-    switch (op)
-    {
+    switch (op) {
         // AND Rd, Rs
         case 0b0000 : {
 
@@ -173,7 +172,7 @@ void cpu::alu_operations(uint16_t instr) {
             psr_register.z = registers[rd] == 0;
             break;
         }
-        // EOR Rd, Rs
+            // EOR Rd, Rs
         case 0b0001 : {
 
             // perform the and operation
@@ -185,24 +184,18 @@ void cpu::alu_operations(uint16_t instr) {
 
             break;
         }
-        // LSL Rd, Rs
+            // LSL Rd, Rs
         case 0b0010 : {
 
             uint32_t value = registers[rs] & 0b11111111;
-            if (value != 0)
-            {
-                if (value == 32)
-                {
+            if (value != 0) {
+                if (value == 32) {
                     value = 0;
                     psr_register.c = (registers[rd] & 1) != 0;
-                }
-                else if (value < 32)
-                {
+                } else if (value < 32) {
                     psr_register.c = ((registers[rd] >> (32 - value)) & 1) != 0;
                     value = registers[rd] << value;
-                }
-                else
-                {
+                } else {
                     value = 0;
                     psr_register.c = false;
                 }
@@ -214,27 +207,127 @@ void cpu::alu_operations(uint16_t instr) {
 
             break;
         }
-        // LSR Rd, Rs
-        case 0b0011 :
+            // LSR Rd, Rs
+        case 0b0011 : {
+            uint32_t value = registers[rs] & 0b11111111;
+            if (value != 0) {
+                if (value == 32) {
+                    value = 0;
+                    psr_register.c = (registers[rd] & 0x80000000) != 0;
+                } else if (value < 32) {
+                    psr_register.c = ((registers[rd] >> (value - 1)) & 1) != 0;
+                    value = registers[rd] >> value;
+                } else {
+                    value = 0;
+                    psr_register.c = false;
+                }
+                registers[rd] = value;
+            }
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+
             break;
-        // ASR Rd, Rs
-        case 0b0100 :
+        }
+            // ASR Rd, Rs
+        case 0b0100 : {
+
+            uint32_t value = registers[rs] & 0b11111111;
+            if (value != 0) {
+                if (value < 32) {
+                    psr_register.c = ((to_signed(registers[rd]) >> (int) (value - 1)) & 1) != 0;
+                    int32_t tmp = to_signed(registers[rd]) >> (int) value;
+                    value = to_unsigned(tmp);
+                    registers[rd] = value;
+                } else {
+                    if ((registers[rd] & 0x80000000) != 0u) {
+                        registers[rd] = 0xFFFFFFFF;
+                        psr_register.c = true;
+                    } else {
+                        registers[rd] = 0x00000000;
+                        psr_register.c = false;
+                    }
+                }
+            }
+
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+
             break;
-        // ADC Rd, Rs
-        case 0b0101 :
+        }
+            // ADC Rd, Rs
+        case 0b0101 : {
+
+            // fetch the values
+            uint32_t value = registers[rs];
+            uint32_t lhs = registers[rd];
+            uint32_t rhs = value;
+
+            // perform the operation
+            uint32_t res = lhs + rhs + (uint32_t) psr_register.c;
+            registers[rd] = res;
+
+            // update flags
+            psr_register.z = res == 0;
+            psr_register.n = neg(res) != 0;
+            psr_register.c = add_carry(lhs, rhs, res);
+            psr_register.v = add_overflow(lhs, rhs, res);
+
             break;
-        // SBC Rd, Rs
-        case 0b0110 :
+        }
+            // SBC Rd, Rs
+        case 0b0110 : {
+
+            // fetch the values
+            uint32_t value = registers[rs];
+            uint32_t lhs = registers[rd];
+            uint32_t rhs = value;
+
+            // perform the operation
+            uint32_t res = lhs - rhs - (uint32_t) !(psr_register.c);
+            registers[rd] = res;
+
+            // update flags
+            psr_register.z = res == 0;
+            psr_register.n = neg(res) != 0;
+            psr_register.c = sub_carry(lhs, rhs, res);
+            psr_register.v = sub_overflow(lhs, rhs, res);
+
             break;
-        case 0b0111 :
+        }
+        case 0b0111 : {
+
+            // fetch the values
+            uint32_t value = registers[rs] & 0b11111111;
+
+            if (value != 0)
+            {
+                value = value & 0x1f;
+                if (value == 0)
+                {
+                    psr_register.c = (registers[rd] & 0x80000000) != 0;
+                }
+                else
+                {
+                    psr_register.c = ((registers[rd] >> (value - 1)) & 1) != 0;
+                    value = ((registers[rd] << (32 - value)) |
+                             (registers[rd] >> value));
+                    registers[rd] = value;
+                }
+            }
+
+            // update flags
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+
             break;
-        // ROR Rd, Rs
+        }
+            // ROR Rd, Rs
         case 0b1000 :
             break;
-        // TST Rd, Rs
+            // TST Rd, Rs
         case 0b1001 :
             break;
-        // NEG Rd, Rs
+            // NEG Rd, Rs
         case 0b1010 :
             break;
         case 0b1011 :
@@ -334,9 +427,11 @@ void cpu::reset() {
 void cpu::register_peripheral(peripheral *p) {
 
     // check if there is a peripheral that is conflicting with this one
-    for(auto r : peripherals) {
-        if(r->in_conflict(p)){
-            throw std::runtime_error("could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " + r->get_name() + "\n");
+    for (auto r : peripherals) {
+        if (r->in_conflict(p)) {
+            throw std::runtime_error(
+                    "could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " +
+                    r->get_name() + "\n");
         }
     }
 
