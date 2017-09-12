@@ -25,27 +25,27 @@ struct psr {
     /**
      * Thumb state bit
      */
-    uint8_t t;
+    bool t;
 
     /**
      * Overflow flag
      */
-    uint8_t v;
+    bool v;
 
     /**
      * Carry or borrow flag
      */
-    uint8_t c;
+    bool c;
 
     /**
      * Zero flag
      */
-    uint8_t z;
+    bool z;
 
     /**
      * Negative flag
      */
-    uint8_t n;
+    bool n;
 };
 
 class cpu {
@@ -54,7 +54,10 @@ private:
 
     const uint8_t REGISTER_MASK = 0b0000000000000111;
     const uint8_t OFFSET_5_MASK = 0b0000000000011111;
+    const uint8_t OFFSET_8_MASK = 0b0000000011111111;
     const uint8_t OPERATION_2_MASK = 0b0000000000000011;
+    const uint8_t OPERATION_3_MASK = 0b0000000000000111;
+    const uint8_t FLAG_MASK = 0b0000000000000001;
 
     /**
      * returns the input value as a signed value
@@ -147,7 +150,7 @@ private:
      * | 0 0 0 1 1 | I | Op | Rn/offset3 | Rs | Rd |
      *
      * I - 1 if immediate value, 0 otherwise
-     * Op - 2 bit operation
+     * Op - 1 bit operation
      * Rn/offset3 - if I is 1 it is a 3 bit offset a register otherwise
      * @param instr 16 bit instruction
      */

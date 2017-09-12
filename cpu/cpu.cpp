@@ -5,30 +5,55 @@
 #include <exception>
 #include <stdexcept>
 #include "cpu.h"
+#include "util.h"
 
 void cpu::move_shifted_register(uint16_t instr) {
 
     // the instruction is of format | 0 0 0 | Op | Offset5 | Rs | Rd |
     int rd = instr & REGISTER_MASK;
-    int rs = (3 >> instr) & REGISTER_MASK;
-    int offset5 = (6 >> instr) & OFFSET_5_MASK;
-    int op = (11 >> instr) & OPERATION_2_MASK;
+    int rs = (instr >> 3) & REGISTER_MASK;
+    int offset5 = (instr >> 6) & OFFSET_5_MASK;
+    int op = (instr >> 11) & OPERATION_2_MASK;
 
     switch (op) {
 
         // the case of left shift
-        case 0b00 :
+        case 0b00 : {
+            // shift the source register by the offset
             registers[rd] = registers[rs] << offset5;
+
+            // update the flags
+            psr_register.c = ((to_signed(registers[rs]) >> (32 - offset5)) & 1) != 0;
+            psr_register.n = (registers[rd] & 0x80000000) != 0u;
+            psr_register.z = registers[rd] == 0;
+
             break;
+        }
         // the case of logical right shift
-        case 0b01 :
+        case 0b01 : {
+            // logical shift the source register to the right by the offset
             registers[rd] = registers[rs] >> offset5;
+
+            // update the flags
+            psr_register.c = ((to_signed(registers[rs]) >> (32 - offset5)) & 1) != 0;
+            psr_register.n = (registers[rd] & 0x80000000) != 0u;
+            psr_register.z = registers[rd] == 0;
+
             break;
+        }
         // the case of arithmetic right shift
-        case 0b10 :
+        case 0b10 : {
+            // arithmetic shift the source register to the right by the offset
             int32_t tmp = to_signed(registers[rs]) >> offset5;
             registers[rd] = to_unsigned(tmp);
+
+            // update flags
+            psr_register.c = ((to_signed(registers[rs]) >> (offset5 - 1)) & 1) != 0;
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0u;
+
             break;
+        }
         default:
             std::runtime_error("The operation in the move shifted register is unsupported!");
     }
@@ -36,13 +61,195 @@ void cpu::move_shifted_register(uint16_t instr) {
 
 void cpu::add_subtract(uint16_t instr) {
 
+    // | 0 0 0 1 1 | I | Op | Rn/offset3 | Rs | Rd |
+    int rd = instr & REGISTER_MASK;
+    int rs = (instr >> 3) & REGISTER_MASK;
+    uint32_t rn_offset3 = (instr >> 6) & REGISTER_MASK;
+    int op = (instr >> 9) & FLAG_MASK;
+    int i = (instr >> 10) & FLAG_MASK;
+
+    // figure out what the value we actually want to have
+    uint32_t value = (i == 0) ? registers[rs] : rn_offset3;
+
+    // do the operation 0 is ADD, 1 is SUB
+    registers[rd] = op == 0 ? registers[rs] + value : registers[rs] - value;
+
+    // update the flags
+    psr_register.z = registers[rd] == 0;
+    psr_register.n = neg(registers[rd]) != 0;
+    psr_register.c = add_carry(registers[rs], value, registers[rd]);
+    psr_register.v = add_overflow(registers[rs], value, registers[rd]);
 }
 
 void cpu::move_compare_add_subtract_immediate(uint16_t instr) {
+    // | 0 0 1 | Op | Rd | Offset8 |
+    uint32_t offset8 = instr & OFFSET_8_MASK;
+    int rd = (instr >> 8) & REGISTER_MASK;
+    int op = (instr >> 10) & REGISTER_MASK;
 
+    switch (op) {
+
+        // move 8-bit immediate value into Rd.
+        case 0b00 : {
+            // just copy
+            registers[rd] = offset8;
+
+            // update flags
+            psr_register.n = false;
+            psr_register.z = registers[rd] == 0;
+
+            break;
+        }
+        // compare contents of Rd with 8-bit immediate value.
+        case 0b01 : {
+
+            // store the lhs for reuse
+            uint32_t tmp = registers[rd];
+
+            // do the operation
+            registers[rd] = registers[rd] - offset8;
+
+            // update flags
+            psr_register.z = registers[rd] == 0;
+            psr_register.n = neg(registers[rd]) != 0;
+            psr_register.c = sub_carry(tmp, offset8, registers[rd]);
+            psr_register.v = sub_overflow(tmp, offset8, registers[rd]);
+
+            break;
+        }
+        // add 8-bit immediate value to contents of Rd and place the result in Rd.
+        case 0b10: {
+            // store the lhs for reuse
+            uint32_t tmp = registers[rd];
+
+            // do the operation
+            registers[rd] = registers[rd] + offset8;
+
+            // update flags
+            psr_register.z = registers[rd] == 0;
+            psr_register.n = neg(registers[rd]) != 0;
+            psr_register.c = add_carry(tmp, offset8, registers[rd]);
+            psr_register.v = add_overflow(tmp, offset8, registers[rd]);
+
+            break;
+        }
+        // subtract 8-bit immediate value from contents of Rd and place the result in Rd.
+        case 0b11: {
+            // store the lhs for reuse
+            uint32_t tmp = registers[rd];
+
+            // do the operation
+            registers[rd] = registers[rd] - offset8;
+
+            // update flags
+            psr_register.z = registers[rd] == 0;
+            psr_register.n = neg(registers[rd]) != 0;
+            psr_register.c = add_carry(tmp, offset8, registers[rd]);
+            psr_register.v = sub_overflow(tmp, offset8, registers[rd]);
+
+            break;
+        }
+        default:
+            std::runtime_error("The operation in the move compare add subtract immediate is unsupported!");
+    }
 }
 
 void cpu::alu_operations(uint16_t instr) {
+    // | 0 1 0 0 0 0 | Op | Rs | Rd |
+    int rd = instr & REGISTER_MASK;
+    int rs = (instr >> 3) & REGISTER_MASK;
+    int op = (instr >> 6) & OPERATION_3_MASK;
+
+    switch (op)
+    {
+        // AND Rd, Rs
+        case 0b0000 : {
+
+            // perform the and operation
+            registers[rd] &= registers[rs];
+
+            // update flags
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+            break;
+        }
+        // EOR Rd, Rs
+        case 0b0001 : {
+
+            // perform the and operation
+            registers[rd] ^= registers[rs];
+
+            // update flags
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+
+            break;
+        }
+        // LSL Rd, Rs
+        case 0b0010 : {
+
+            uint32_t value = registers[rs] & 0b11111111;
+            if (value != 0)
+            {
+                if (value == 32)
+                {
+                    value = 0;
+                    psr_register.c = (registers[rd] & 1) != 0;
+                }
+                else if (value < 32)
+                {
+                    psr_register.c = ((registers[rd] >> (32 - value)) & 1) != 0;
+                    value = registers[rd] << value;
+                }
+                else
+                {
+                    value = 0;
+                    psr_register.c = false;
+                }
+                registers[rd] = value;
+            }
+
+            psr_register.n = (registers[rd] & 0x80000000) != 0;
+            psr_register.z = registers[rd] == 0;
+
+            break;
+        }
+        // LSR Rd, Rs
+        case 0b0011 :
+            break;
+        // ASR Rd, Rs
+        case 0b0100 :
+            break;
+        // ADC Rd, Rs
+        case 0b0101 :
+            break;
+        // SBC Rd, Rs
+        case 0b0110 :
+            break;
+        case 0b0111 :
+            break;
+        // ROR Rd, Rs
+        case 0b1000 :
+            break;
+        // TST Rd, Rs
+        case 0b1001 :
+            break;
+        // NEG Rd, Rs
+        case 0b1010 :
+            break;
+        case 0b1011 :
+            break;
+        case 0b1100 :
+            break;
+        case 0b1101 :
+            break;
+        case 0b1110 :
+            break;
+        case 0b1111 :
+            break;
+        default:
+            std::runtime_error("The operation in the alu is unsupported!");
+    }
 
 }
 
