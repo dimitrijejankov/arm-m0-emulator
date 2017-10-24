@@ -9,344 +9,555 @@
 
 void cpu::move_shifted_register(uint16_t instr) {
 
-    // the instruction is of format | 0 0 0 | Op | Offset5 | Rs | Rd |
-    int rd = instr & REGISTER_MASK;
-    int rs = (instr >> 3) & REGISTER_MASK;
-    int offset5 = (instr >> 6) & OFFSET_5_MASK;
-    int op = (instr >> 11) & OPERATION_2_MASK;
+  // the instruction is of format | 0 0 0 | Op | Offset5 | Rs | Rd |
+  int rd = instr & REGISTER_MASK;
+  int rs = (instr >> 3) & REGISTER_MASK;
+  int offset5 = (instr >> 6) & OFFSET_5_MASK;
+  int op = (instr >> 11) & OPERATION_2_MASK;
 
-    switch (op) {
+  switch (op) {
 
-        // the case of left shift
-        case 0b00 : {
-            // shift the source register by the offset
-            registers[rd] = registers[rs] << offset5;
+    // the case of left shift
+  case 0b00 : {
 
-            // update the flags
-            psr_register.c = ((to_signed(registers[rs]) >> (32 - offset5)) & 1) != 0;
-            psr_register.n = (registers[rd] & 0x80000000) != 0u;
-            psr_register.z = registers[rd] == 0;
+    uint32_t value;
+    psr_register.c = ((registers[rs].to_uint >> (32 - offset5)) & 1) != 0;
+    value = registers[rs].to_uint << (uint) offset5;
+    registers[rd].to_uint = value;
+    psr_register.n = (value & 0x80000000) != 0;
+    psr_register.z = value == 0;
 
-            break;
-        }
-            // the case of logical right shift
-        case 0b01 : {
-            // logical shift the source register to the right by the offset
-            registers[rd] = registers[rs] >> offset5;
+    break;
+  }
+    // the case of logical right shift
+  case 0b01 : {
 
-            // update the flags
-            psr_register.c = ((to_signed(registers[rs]) >> (32 - offset5)) & 1) != 0;
-            psr_register.n = (registers[rd] & 0x80000000) != 0u;
-            psr_register.z = registers[rd] == 0;
+    uint32_t value;
+    psr_register.c = ((registers[rs].to_uint >> (offset5 - 1)) & 1) != 0;
+    value = registers[rs].to_uint >> (uint) offset5;
+    registers[rd].to_uint = value;
+    psr_register.n = (value & 0x80000000) != 0;
+    psr_register.z = value == 0;
 
-            break;
-        }
-            // the case of arithmetic right shift
-        case 0b10 : {
-            // arithmetic shift the source register to the right by the offset
-            int32_t tmp = to_signed(registers[rs]) >> offset5;
-            registers[rd] = to_unsigned(tmp);
+    break;
+  }
+    // the case of arithmetic right shift
+  case 0b10 : {
 
-            // update flags
-            psr_register.c = ((to_signed(registers[rs]) >> (offset5 - 1)) & 1) != 0;
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0u;
+    int32_t value;
+    psr_register.c = (((int32_t) registers[rs].to_uint >> (offset5 - 1)) & 1) != 0;
+    value = (int32_t) registers[rs].to_uint >> offset5;
+    registers[rd].to_uint = (uint) value;
+    psr_register.n = (value & 0x80000000) != 0;
+    psr_register.z = value == 0;
 
-            break;
-        }
-        default:
-            std::runtime_error("The operation in the move shifted register is unsupported!");
-    }
+    break;
+  }
+  default:std::runtime_error("The operation in the move shifted register is unsupported!");
+  }
 }
 
 void cpu::add_subtract(uint16_t instr) {
 
-    // | 0 0 0 1 1 | I | Op | Rn/offset3 | Rs | Rd |
-    int rd = instr & REGISTER_MASK;
-    int rs = (instr >> 3) & REGISTER_MASK;
-    uint32_t rn_offset3 = (instr >> 6) & REGISTER_MASK;
-    int op = (instr >> 9) & FLAG_MASK;
-    int i = (instr >> 10) & FLAG_MASK;
+  // | 0 0 0 1 1 | I | Op | Rn/offset3 | Rs | Rd |
+  int rd = instr & REGISTER_MASK;
+  int rs = (instr >> 3) & REGISTER_MASK;
+  uint32_t rn_offset3 = (instr >> 6) & REGISTER_MASK;
+  int op = (instr >> 9) & FLAG_MASK;
+  int i = (instr >> 10) & FLAG_MASK;
 
-    // figure out what the value we actually want to have
-    uint32_t value = (i == 0) ? registers[rs] : rn_offset3;
+  // figure out what the value we actually want to have
+  uint32_t value = (i == 0) ? registers[rs].to_uint : rn_offset3;
 
-    // do the operation 0 is ADD, 1 is SUB
-    registers[rd] = op == 0 ? registers[rs] + value : registers[rs] - value;
+  // do the operation 0 is ADD, 1 is SUB
+  registers[rd].to_uint = op == 0 ? registers[rs].to_uint + value : registers[rs].to_uint - value;
 
-    // update the flags
-    psr_register.z = registers[rd] == 0;
-    psr_register.n = neg(registers[rd]) != 0;
-    psr_register.c = add_carry(registers[rs], value, registers[rd]);
-    psr_register.v = add_overflow(registers[rs], value, registers[rd]);
+  // update the flags
+  psr_register.z = registers[rd].to_uint == 0;
+  psr_register.n = neg(registers[rd].to_uint) != 0;
+  psr_register.c = add_carry(registers[rs].to_uint, value, registers[rd].to_uint);
+  psr_register.v = add_overflow(registers[rs].to_uint, value, registers[rd].to_uint);
 }
 
 void cpu::move_compare_add_subtract_immediate(uint16_t instr) {
-    // | 0 0 1 | Op | Rd | Offset8 |
-    uint32_t offset8 = instr & OFFSET_8_MASK;
-    int rd = (instr >> 8) & REGISTER_MASK;
-    int op = (instr >> 10) & REGISTER_MASK;
 
-    switch (op) {
+  // | 0 0 1 | Op | Rd | Offset8 |
+  uint32_t offset8 = instr & OFFSET_8_MASK;
+  int rd = (instr >> 8) & REGISTER_MASK;
+  int op = (instr >> 10) & REGISTER_MASK;
 
-        // move 8-bit immediate value into Rd.
-        case 0b00 : {
-            // just copy
-            registers[rd] = offset8;
+  switch (op) {
 
-            // update flags
-            psr_register.n = false;
-            psr_register.z = registers[rd] == 0;
+    // move 8-bit immediate value into Rd.
+  case 0b00 : {
 
-            break;
-        }
-            // compare contents of Rd with 8-bit immediate value.
-        case 0b01 : {
+    // grab the 8 bit value
+    registers[rd].to_uint = offset8;
 
-            // store the lhs for reuse
-            uint32_t tmp = registers[rd];
+    // update the flags
+    psr_register.n = false;
+    psr_register.z = registers[rd].to_uint == 0;
 
-            // do the operation
-            registers[rd] = registers[rd] - offset8;
+    break;
+  }
+    // compare contents of Rd with 8-bit immediate value.
+  case 0b01 : {
 
-            // update flags
-            psr_register.z = registers[rd] == 0;
-            psr_register.n = neg(registers[rd]) != 0;
-            psr_register.c = sub_carry(tmp, offset8, registers[rd]);
-            psr_register.v = sub_overflow(tmp, offset8, registers[rd]);
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = (instr & 255u);
+    uint32_t res = lhs - rhs;
 
-            break;
-        }
-            // add 8-bit immediate value to contents of Rd and place the result in Rd.
-        case 0b10: {
-            // store the lhs for reuse
-            uint32_t tmp = registers[rd];
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
 
-            // do the operation
-            registers[rd] = registers[rd] + offset8;
+    break;
+  }
+    // add 8-bit immediate value to contents of Rd and place the result in Rd.
+  case 0b10: {
 
-            // update flags
-            psr_register.z = registers[rd] == 0;
-            psr_register.n = neg(registers[rd]) != 0;
-            psr_register.c = add_carry(tmp, offset8, registers[rd]);
-            psr_register.v = add_overflow(tmp, offset8, registers[rd]);
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = (instr & 255u);
+    uint32_t res = lhs + rhs;
+    registers[rd].to_uint = res;
 
-            break;
-        }
-            // subtract 8-bit immediate value from contents of Rd and place the result in Rd.
-        case 0b11: {
-            // store the lhs for reuse
-            uint32_t tmp = registers[rd];
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = add_carry(lhs, rhs, res);
+    psr_register.v = add_overflow(lhs, rhs, res);
 
-            // do the operation
-            registers[rd] = registers[rd] - offset8;
+    break;
+  }
+    // subtract 8-bit immediate value from contents of Rd and place the result in Rd.
+  case 0b11: {
 
-            // update flags
-            psr_register.z = registers[rd] == 0;
-            psr_register.n = neg(registers[rd]) != 0;
-            psr_register.c = add_carry(tmp, offset8, registers[rd]);
-            psr_register.v = sub_overflow(tmp, offset8, registers[rd]);
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = (instr & 255u);
+    uint32_t res = lhs - rhs;
+    registers[rd].to_uint = res;
 
-            break;
-        }
-        default:
-            std::runtime_error("The operation in the move compare add subtract immediate is unsupported!");
-    }
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = add_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
+
+    break;
+  }
+  default:std::runtime_error("The operation in the move compare add subtract immediate is unsupported!");
+  }
 }
 
 void cpu::alu_operations(uint16_t instr) {
-    // | 0 1 0 0 0 0 | Op | Rs | Rd |
-    int rd = instr & REGISTER_MASK;
-    int rs = (instr >> 3) & REGISTER_MASK;
-    int op = (instr >> 6) & OPERATION_3_MASK;
+  // | 0 1 0 0 0 0 | Op | Rs | Rd |
+  int rd = instr & REGISTER_MASK;
+  int rs = (instr >> 3) & REGISTER_MASK;
+  int op = (instr >> 6) & OPERATION_3_MASK;
 
-    switch (op) {
-        // AND Rd, Rs
-        case 0b0000 : {
+  switch (op) {
+    // AND Rd, Rs
+  case 0b0000 : {
 
-            // perform the and operation
-            registers[rd] &= registers[rs];
+    registers[rd].to_uint &= registers[rs].to_uint;
 
-            // update flags
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
-            break;
-        }
-            // EOR Rd, Rs
-        case 0b0001 : {
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
 
-            // perform the and operation
-            registers[rd] ^= registers[rs];
+    break;
+  }
+    // EOR Rd, Rs
+  case 0b0001 : {
 
-            // update flags
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
+    registers[rd].to_uint ^= registers[rs].to_uint;
 
-            break;
-        }
-            // LSL Rd, Rs
-        case 0b0010 : {
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
 
-            uint32_t value = registers[rs] & 0b11111111;
-            if (value != 0) {
-                if (value == 32) {
-                    value = 0;
-                    psr_register.c = (registers[rd] & 1) != 0;
-                } else if (value < 32) {
-                    psr_register.c = ((registers[rd] >> (32 - value)) & 1) != 0;
-                    value = registers[rd] << value;
-                } else {
-                    value = 0;
-                    psr_register.c = false;
-                }
-                registers[rd] = value;
-            }
+    break;
+  }
+    // LSL Rd, Rs
+  case 0b0010 : {
 
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
-
-            break;
-        }
-            // LSR Rd, Rs
-        case 0b0011 : {
-            uint32_t value = registers[rs] & 0b11111111;
-            if (value != 0) {
-                if (value == 32) {
-                    value = 0;
-                    psr_register.c = (registers[rd] & 0x80000000) != 0;
-                } else if (value < 32) {
-                    psr_register.c = ((registers[rd] >> (value - 1)) & 1) != 0;
-                    value = registers[rd] >> value;
-                } else {
-                    value = 0;
-                    psr_register.c = false;
-                }
-                registers[rd] = value;
-            }
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
-
-            break;
-        }
-            // ASR Rd, Rs
-        case 0b0100 : {
-
-            uint32_t value = registers[rs] & 0b11111111;
-            if (value != 0) {
-                if (value < 32) {
-                    psr_register.c = ((to_signed(registers[rd]) >> (int) (value - 1)) & 1) != 0;
-                    int32_t tmp = to_signed(registers[rd]) >> (int) value;
-                    value = to_unsigned(tmp);
-                    registers[rd] = value;
-                } else {
-                    if ((registers[rd] & 0x80000000) != 0u) {
-                        registers[rd] = 0xFFFFFFFF;
-                        psr_register.c = true;
-                    } else {
-                        registers[rd] = 0x00000000;
-                        psr_register.c = false;
-                    }
-                }
-            }
-
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
-
-            break;
-        }
-            // ADC Rd, Rs
-        case 0b0101 : {
-
-            // fetch the values
-            uint32_t value = registers[rs];
-            uint32_t lhs = registers[rd];
-            uint32_t rhs = value;
-
-            // perform the operation
-            uint32_t res = lhs + rhs + (uint32_t) psr_register.c;
-            registers[rd] = res;
-
-            // update flags
-            psr_register.z = res == 0;
-            psr_register.n = neg(res) != 0;
-            psr_register.c = add_carry(lhs, rhs, res);
-            psr_register.v = add_overflow(lhs, rhs, res);
-
-            break;
-        }
-            // SBC Rd, Rs
-        case 0b0110 : {
-
-            // fetch the values
-            uint32_t value = registers[rs];
-            uint32_t lhs = registers[rd];
-            uint32_t rhs = value;
-
-            // perform the operation
-            uint32_t res = lhs - rhs - (uint32_t) !(psr_register.c);
-            registers[rd] = res;
-
-            // update flags
-            psr_register.z = res == 0;
-            psr_register.n = neg(res) != 0;
-            psr_register.c = sub_carry(lhs, rhs, res);
-            psr_register.v = sub_overflow(lhs, rhs, res);
-
-            break;
-        }
-        case 0b0111 : {
-
-            // fetch the values
-            uint32_t value = registers[rs] & 0b11111111;
-
-            if (value != 0)
-            {
-                value = value & 0x1f;
-                if (value == 0)
-                {
-                    psr_register.c = (registers[rd] & 0x80000000) != 0;
-                }
-                else
-                {
-                    psr_register.c = ((registers[rd] >> (value - 1)) & 1) != 0;
-                    value = ((registers[rd] << (32 - value)) |
-                             (registers[rd] >> value));
-                    registers[rd] = value;
-                }
-            }
-
-            // update flags
-            psr_register.n = (registers[rd] & 0x80000000) != 0;
-            psr_register.z = registers[rd] == 0;
-
-            break;
-        }
-            // ROR Rd, Rs
-        case 0b1000 :
-            break;
-            // TST Rd, Rs
-        case 0b1001 :
-            break;
-            // NEG Rd, Rs
-        case 0b1010 :
-            break;
-        case 0b1011 :
-            break;
-        case 0b1100 :
-            break;
-        case 0b1101 :
-            break;
-        case 0b1110 :
-            break;
-        case 0b1111 :
-            break;
-        default:
-            std::runtime_error("The operation in the alu is unsupported!");
+    uint32_t value = registers[rs].to_bytes.B0;
+    if (value) {
+      if (value == 32) {
+        value = 0;
+        psr_register.c = (registers[rd].to_uint & 1) != 0;
+      } else if (value < 32) {
+        psr_register.c = ((registers[rd].to_uint >> (32 - value)) & 1) != 0;
+        value = registers[rd].to_uint << value;
+      } else {
+        value = 0;
+        psr_register.c = false;
+      }
+      registers[rd].to_uint = value;
     }
+
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
+
+    break;
+  }
+    // LSR Rd, Rs
+  case 0b0011 : {
+
+    uint32_t value = registers[rs].to_bytes.B0;
+    if (value) {
+      if (value == 32) {
+        value = 0;
+        psr_register.c = (registers[rd].to_uint & 0x80000000) != 0;
+      } else if (value < 32) {
+        psr_register.c = ((registers[rd].to_uint >> (value - 1)) & 1) != 0;
+        value = registers[rd].to_uint >> value;
+      } else {
+        value = 0;
+        psr_register.c = false;
+      }
+      registers[rd].to_uint = value;
+    }
+
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
+
+    break;
+  }
+    // ASR Rd, Rs
+  case 0b0100 : {
+
+    int32_t value = registers[rs].to_bytes.B0;
+    if (value) {
+      if (value < 32) {
+        psr_register.c = (((int32_t) registers[rd].to_uint >> (int) (value - 1)) & 1) != 0;
+        value = (int32_t) registers[rd].to_uint >> (int) value;
+        registers[rd].to_uint = (uint32_t) value;
+      } else {
+        if (registers[rd].to_uint & 0x80000000) {
+          registers[rd].to_uint = 0xFFFFFFFF;
+          psr_register.c = true;
+        } else {
+          registers[rd].to_uint = 0x00000000;
+          psr_register.c = false;
+        }
+      }
+    }
+
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
+
+    break;
+  }
+    // ADC Rd, Rs
+  case 0b0101 : {
+
+    uint32_t value = registers[rs].to_uint;
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs + rhs + (uint32_t) psr_register.c;
+    registers[rd].to_uint = res;
+
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = add_carry(lhs, rhs, res);
+    psr_register.v = add_overflow(lhs, rhs, res);
+
+    break;
+  }
+    // SBC Rd, Rs
+  case 0b0110 : {
+
+    uint32_t value = registers[rs].to_uint;
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs - rhs - !((uint32_t) psr_register.c);
+    registers[rd].to_uint = res;
+
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
+
+    break;
+  }
+    // ROR Rd, Rs
+  case 0b0111 : {
+
+    uint32_t value = registers[rs].to_bytes.B0;
+
+    if (value) {
+      value = value & 0x1f;
+      if (value == 0) {
+        psr_register.c = (registers[rd].to_uint & 0x80000000) != 0;
+      } else {
+        psr_register.c = ((registers[rd].to_uint >> (value - 1)) & 1) != 0;
+        value = ((registers[rd].to_uint << (32 - value)) |
+            (registers[rd].to_uint >> value));
+        registers[rd].to_uint = value;
+      }
+    }
+
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
+
+    break;
+  }
+    // ROR Rd, Rs
+  case 0b1000 : {
+
+    uint32_t value = registers[rs].to_bytes.B0;
+
+    if (value) {
+      value = value & 0x1f;
+      if (value == 0) {
+        psr_register.c = (registers[rd].to_uint & 0x80000000) != 0;
+      } else {
+        psr_register.c = ((registers[rd].to_uint >> (value - 1)) & 1) != 0;
+        value = ((registers[rd].to_uint << (32 - value)) |
+            (registers[rd].to_uint >> value));
+        registers[rd].to_uint = value;
+      }
+    }
+
+    // update the flags
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+    psr_register.z = registers[rd].to_uint == 0;
+
+    break;
+  }
+    // TST Rd, Rs
+  case 0b1001 : {
+
+    uint32_t value = registers[rd].to_uint & registers[rs].to_uint;
+    psr_register.n = (value & 0x80000000) != 0;
+    psr_register.z = value == 0;
+
+    break;
+  }
+    // NEG Rd, Rs
+  case 0b1010 : {
+
+    uint32_t lhs = registers[rs].to_uint;
+    uint32_t rhs = 0;
+    uint32_t res = rhs - lhs;
+    registers[rd].to_uint = res;
+
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(rhs, lhs, res);
+    psr_register.v = sub_overflow(rhs, lhs, res);
+
+    break;
+  };
+    // CMN Rd, Rs
+  case 0b1011 : {
+
+    uint32_t value = registers[rs].to_uint;
+    uint32_t lhs = registers[rd].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs + rhs;
+
+    // update the flags
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = add_carry(lhs, rhs, res);
+    psr_register.v = add_overflow(lhs, rhs, res);
+
+    break;
+  };
+    // ORR Rd, Rs
+  case 0b1100 : {
+
+    registers[rd].to_uint |= registers[rs].to_uint;
+
+    // update the flags
+    psr_register.z = registers[rd].to_uint == 0;
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+
+    break;
+  };
+    // MUL Rd, Rs
+  case 0b1101 : {
+
+    uint32_t rm = registers[rd].to_uint;
+    registers[rd].to_uint = registers[rs].to_uint * rm;
+
+    psr_register.z = registers[rd].to_uint == 0;
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+
+    break;
+  };
+    // BIC Rd, Rs
+  case 0b1110 : {
+
+    registers[rd].to_uint &= (~registers[rs].to_uint);
+
+    // update the flags
+    psr_register.z = registers[rd].to_uint == 0;
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+
+    break;
+  };
+    // MVN Rd, Rs
+  case 0b1111 : {
+
+    registers[rd].to_uint = ~registers[rs].to_uint;
+
+    // update the flags
+    psr_register.z = registers[rd].to_uint == 0;
+    psr_register.n = (registers[rd].to_uint & 0x80000000) != 0;
+
+    break;
+  };
+  default:std::runtime_error("The operation in the alu is unsupported!");
+  }
 
 }
 
 void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
+
+  // | 0 1 0 0 0 1 | Op | H1 | H2 | Rs/Hs | Rd/Hd |
+  int op_h1_h2 = instr >> 6 & 0x1111;
+
+  switch (op_h1_h2) {
+
+    // ADD Rd, Hs
+  case 0b0001: {
+    registers[instr & 7].to_uint += registers[((instr >> 3) & 7) + 8].to_uint;
+    break;
+  }
+    // ADD Hd, Rs
+  case 0b0010: {
+
+    registers[(instr & 7) + 8].to_uint += registers[(instr >> 3) & 7].to_uint;
+
+    // is this the PC register
+    if ((instr & 7) == 7) {
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    }
+    break;
+  }
+    // ADD Hd, Hs
+  case 0b0011: {
+    registers[(instr & 7) + 8].to_uint += registers[((instr >> 3) & 7) + 8].to_uint;
+
+    // is this the PC register
+    if ((instr & 7) == 7) {
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    }
+    break;
+  }
+    // CMP Rd, Hs
+  case 0b0101: {
+    int dest = instr & 7;
+    uint32_t value = registers[((instr >> 3) & 7) + 8].to_uint;
+
+    uint32_t lhs = registers[dest].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs - rhs;
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
+
+    break;
+  }
+    // CMP Hd, Rs
+  case 0b0110: {
+    int dest = (instr & 7) + 8;
+    uint32_t value = registers[(instr >> 3) & 7].to_uint;
+
+    uint32_t lhs = registers[dest].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs - rhs;
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
+
+    break;
+  }
+    // CMP Hd, Hs
+  case 0b0111: {
+    int dest = (instr & 7) + 8;
+    uint32_t value = registers[((instr >> 3) & 7) + 8].to_uint;
+
+    uint32_t lhs = registers[dest].to_uint;
+    uint32_t rhs = value;
+    uint32_t res = lhs - rhs;
+    psr_register.z = res == 0;
+    psr_register.n = neg(res) != 0;
+    psr_register.c = sub_carry(lhs, rhs, res);
+    psr_register.v = sub_overflow(lhs, rhs, res);
+
+    break;
+  }
+    // MOV Rd, Hs
+  case 0b1001: {
+    registers[instr & 7].to_uint = registers[((instr >> 3) & 7) + 8].to_uint;
+    break;
+  }
+    // MOV Hd, Rs
+  case 0b1010: {
+    registers[(instr & 7) + 8].to_uint = registers[(instr >> 3) & 7].to_uint;
+
+    // is this the PC register
+    if ((instr & 7) == 7) {
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    }
+    break;
+  }
+    // MOV Hd, Hs
+  case 0b1011: {
+    registers[(instr & 7) + 8].to_uint = registers[((instr >> 3) & 7) + 8].to_uint;
+
+    // is this the PC register
+    if ((instr & 7) == 7) {
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    }
+    break;
+  }
+    // BX Rs
+  case 0b1100: {
+
+    int base = (instr >> 3) & 15;
+    registers[15].to_uint = registers[base].to_uint;
+
+    registers[15].to_uint &= 0xFFFFFFFE;
+    next_pc = registers[15].to_uint;
+    registers[15].to_uint += 2;
+    prefetch();
+
+    break;
+  }
+    // BX Hs TODO
+  case 0b1101: {
+    break;
+  }
+  default:std::runtime_error("The operation in the alu is unsupported!");
+  }
 
 }
 
@@ -408,33 +619,63 @@ void cpu::long_branch_with_link(uint16_t instr) {
 
 cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
 
-    // resets the cpu
-    reset();
+  // resets the cpu
+  reset();
 
-    // init the flash region
-    this->code_region = new uint8_t[flash_size];
+  // init the flash region
+  this->code_region = new uint8_t[flash_size];
 
-    // init the sram region
-    this->sram_region = new uint8_t[sram_size];
+  // init the sram region
+  this->sram_region = new uint8_t[sram_size];
 }
 
 void cpu::reset() {
 
-    // the default cpu mode is thread mode
-    current_mode = THREAD_MODE;
+  // the default cpu mode is thread mode
+  current_mode = THREAD_MODE;
 }
 
 void cpu::register_peripheral(peripheral *p) {
 
-    // check if there is a peripheral that is conflicting with this one
-    for (auto r : peripherals) {
-        if (r->in_conflict(p)) {
-            throw std::runtime_error(
-                    "could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " +
-                    r->get_name() + "\n");
-        }
+  // check if there is a peripheral that is conflicting with this one
+  for (auto r : peripherals) {
+    if (r->in_conflict(p)) {
+      throw std::runtime_error(
+          "could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " +
+              r->get_name() + "\n");
     }
+  }
 
-    // add the peripheral
-    peripherals.push_back(p);
+  // add the peripheral
+  peripherals.push_back(p);
 }
+
+void cpu::execute_op(uint16_t) {
+
+}
+
+void cpu::run() {
+
+  do {
+
+    uint32_t opcode = cpu_prefetch[0];
+    cpu_prefetch[0] = cpu_prefetch[1];
+
+    next_pc = registers[15].to_uint;
+    registers[15].to_uint += 2;
+
+    // fetch the next instruction
+    prefetch_next();
+
+    execute_op(opcode);
+
+  } while (!holdState);
+
+}
+void cpu::prefetch() {
+
+}
+void cpu::prefetch_next() {
+
+}
+

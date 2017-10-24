@@ -46,4 +46,5 @@ static inline bool sub_overflow(const uint32_t a, const uint32_t b, const uint32
                              (pos(a) & neg(b) & neg(c)));
 }
 
+
 #endif //EMULATOR_M0_UTIL_H

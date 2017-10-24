@@ -48,6 +48,39 @@ struct psr {
     bool n;
 };
 
+/**
+ * The register type
+ */
+union arm_register_t {
+
+  /**
+   * Used to get the bytes (assuming little endian)
+   */
+  struct
+  {
+    uint8_t B0;
+    uint8_t B1;
+    uint8_t B2;
+    uint8_t B3;
+
+  } to_bytes;
+
+  /**
+   * Used to get the 16 words (assuming little endian)
+   */
+  struct
+  {
+    uint16_t W0;
+    uint16_t W1;
+
+  } to_half_words;
+
+  /**
+   * Used to get the unsigned 32-bit word
+   */
+  uint32_t to_uint;
+};
+
 class cpu {
 
 private:
@@ -99,7 +132,22 @@ private:
      *
      * Register R15 is the program counter (PC)
      */
-    uint32_t registers[15];
+    arm_register_t registers[15];
+
+    /**
+     * The pre-fetched instructions
+     */
+    uint32_t cpu_prefetch[2];
+
+    /**
+     * Flag to indicate if the processor currently is in hold mode.
+     */
+    bool holdState;
+
+    /**
+     * The next instruction we need to prefetch
+     */
+    uint32_t next_pc;
 
     /**
      * Program Status Register (PSR)
@@ -131,6 +179,28 @@ private:
      * Initializes the cpu to the state it is supposed to boot up
      */
     void reset();
+
+
+    /**
+     * Run the processor
+     */
+    void run();
+
+
+    /**
+     * Execute the operation
+     */
+    void execute_op(uint16_t);
+
+    /**
+     * Prefetch
+     */
+    void prefetch();
+
+    /**
+     * Prefetch next
+     */
+    void prefetch_next();
 
     /**
      * Decodes the 16 bit instruction of the format
