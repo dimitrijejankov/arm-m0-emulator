@@ -4,6 +4,7 @@
 
 #include <exception>
 #include <stdexcept>
+#include <zconf.h>
 #include "cpu.h"
 #include "util.h"
 
@@ -622,11 +623,8 @@ cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
   // resets the cpu
   reset();
 
-  // init the flash region
-  this->code_region = new uint8_t[flash_size];
-
-  // init the sram region
-  this->sram_region = new uint8_t[sram_size];
+  // init the mmu by allocating the flash region and the sram region
+  mmu_ptr = new mmu(new uint8_t[flash_size], new uint8_t[sram_size]);
 }
 
 void cpu::reset() {
@@ -635,20 +633,7 @@ void cpu::reset() {
   current_mode = THREAD_MODE;
 }
 
-void cpu::register_peripheral(peripheral *p) {
 
-  // check if there is a peripheral that is conflicting with this one
-  for (auto r : peripherals) {
-    if (r->in_conflict(p)) {
-      throw std::runtime_error(
-          "could not register the peripheral peripheral : " + p->get_name() + " in conflict with : " +
-              r->get_name() + "\n");
-    }
-  }
-
-  // add the peripheral
-  peripherals.push_back(p);
-}
 
 void cpu::execute_op(uint16_t) {
 
@@ -658,7 +643,7 @@ void cpu::run() {
 
   do {
 
-    uint32_t opcode = cpu_prefetch[0];
+    uint16_t instr = cpu_prefetch[0];
     cpu_prefetch[0] = cpu_prefetch[1];
 
     next_pc = registers[15].to_uint;
@@ -667,7 +652,7 @@ void cpu::run() {
     // fetch the next instruction
     prefetch_next();
 
-    execute_op(opcode);
+    execute_op(instr);
 
   } while (!holdState);
 

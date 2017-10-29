@@ -9,6 +9,7 @@
 #include <vector>
 #include "registers.h"
 #include "../pheripherals/peripheral.h"
+#include "mmu.h"
 
 enum mode {
     THREAD_MODE,
@@ -161,31 +162,19 @@ private:
     uint32_t isp;
 
     /**
-     * The memory in on-chip flash ranges from 0x00000000 to 0x1FFFFFFF
+     * The mmu (used to get all the instructions and the data)
      */
-    uint8_t *code_region;
-
-    /**
-     * The region in on-chip SRAM rages from 0x20000000 to 0x3FFFFFFF
-     */
-    uint8_t *sram_region;
-
-    /**
-     * The list of all peripheral this cpu has
-     */
-    std::vector<peripheral*> peripherals;
+    mmu *mmu_ptr;
 
     /**
      * Initializes the cpu to the state it is supposed to boot up
      */
     void reset();
 
-
     /**
      * Run the processor
      */
     void run();
-
 
     /**
      * Execute the operation
@@ -193,12 +182,12 @@ private:
     void execute_op(uint16_t);
 
     /**
-     * Prefetch
+     * Prefetch does a prefetch based on the programming counter
      */
     void prefetch();
 
     /**
-     * Prefetch next
+     * Prefetches the next instruction
      */
     void prefetch_next();
 
@@ -430,11 +419,7 @@ public:
      */
     cpu(uint32_t flash_size, uint32_t sram_size);
 
-    /**
-     * Registers a peripheral to the cpu
-     * @param p
-     */
-    void register_peripheral(peripheral *p);
+
 };
 
 
