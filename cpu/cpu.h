@@ -92,6 +92,7 @@ private:
     const uint8_t OPERATION_2_MASK = 0b0000000000000011;
     const uint8_t OPERATION_3_MASK = 0b0000000000000111;
     const uint8_t FLAG_MASK = 0b0000000000000001;
+    const uint8_t FLAG_MASK_2 = 0b0000000000000011;
 
     /**
      * returns the input value as a signed value

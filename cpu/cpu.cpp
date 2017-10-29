@@ -546,16 +546,24 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
     int base = (instr >> 3) & 15;
     registers[15].to_uint = registers[base].to_uint;
 
-    registers[15].to_uint &= 0xFFFFFFFE;
-    next_pc = registers[15].to_uint;
-    registers[15].to_uint += 2;
-    prefetch();
+    if (registers[15].to_uint & 1) {
+      // we are in thumb state because the address had a 1 bit set
+      psr_register.t = true;
+
+      // remove the last bit of the address since it's not a valid one
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    } else {
+      throw std::runtime_error("Going to ARM state is not possible on a M0 cpu");
+    }
 
     break;
   }
-    // BX Hs TODO
+    // BX Hs This is not defined by the standard and is not implemented
   case 0b1101: {
-    break;
+    throw std::runtime_error("BX Hs is undefined by the Thumb instruction set");
   }
   default:std::runtime_error("The operation in the alu is unsupported!");
   }
@@ -563,14 +571,76 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
 }
 
 void cpu::pc_relative_load(uint16_t instr) {
-
+  // LDR Rd, [PC, #Imm]
+  int reg = (instr >> 8) & 7;
+  uint32_t address = (registers [15].to_uint & 0xFFFFFFFC) + ((instr & 0xFF) << 2);
+  registers[reg].to_uint = mmu_ptr->read32(address);
 }
 
 void cpu::load_store_with_register_offset(uint16_t instr) {
+  int flags = (instr >> 10) & FLAG_MASK_2;
 
+  switch (flags) {
+    // STR Rd, [Rb, Ro]
+  case 0b00 : {
+    uint32_t address = registers[(instr >> 3) & 7].to_uint + registers[(instr >> 6) & 7].to_uint;
+    mmu_ptr->write32(address, registers[instr & 7].to_uint);
+    break;
+  }
+    // STRB Rd, [Rb, Ro]
+  case 0b01 : {
+    uint32_t address = registers[(instr >> 3) & 7].to_uint + registers[(instr >> 6) & 7].to_uint;
+    mmu_ptr->write8(address, registers[instr & 7].to_bytes.B0);
+    break;
+  };
+    // LDR Rd, [Rb, Ro]
+  case 0b10 : {
+
+    uint32_t address = registers[(instr >> 3) & 7].to_uint + registers[(instr >> 6) & 7].to_uint;
+    registers[instr & 7].to_uint = mmu_ptr->read32(address);
+    break;
+  };
+    // LDRB Rd, [Rb, Ro]
+  case 0b11 : {
+    uint32_t address = registers[(instr >> 3) & 7].to_uint + registers[(instr >> 6) & 7].to_uint;
+    registers[instr & 7].to_uint = mmu_ptr->read8(address);
+    break;
+  };
+  default:std::runtime_error("The operation in the alu is unsupported!");
+  }
 }
 
 void cpu::load_store_sign_extended_byte_halfword(uint16_t instr) {
+
+  int flags = (instr >> 10) & FLAG_MASK_2;
+
+  switch (flags) {
+    // STRH Rd, [Rb, Ro]
+  case 0b00 : {
+    uint32_t address = registers[(instr>>3)&7].to_uint + registers[(instr>>6)&7].to_uint;
+    mmu_ptr->write16(address, registers[instr&7].to_half_words.W0);
+    break;
+  }
+    // LDRH Rd, [Rb, Ro]
+  case 0b01 : {
+    uint32_t address = registers[(instr>>3)&7].to_uint + registers[(instr>>6)&7].to_uint;
+    registers[instr&7].to_uint = mmu_ptr->read16(address);
+    break;
+  };
+    // LDSB Rd, [Rb, Ro]
+  case 0b10 : {
+    uint32_t address = registers[(instr>>3)&7].to_uint + registers[(instr>>6)&7].to_uint;
+    registers[instr & 7].to_uint = (int8_t)mmu_ptr->read8(address);
+    break;
+  };
+    // LDSH Rd, [Rb, Ro]
+  case 0b11 : {
+    uint32_t address = registers[(instr>>3)&7].to_uint + registers[(instr>>6)&7].to_uint;
+    registers[instr&7].to_uint = (int16_t)mmu_ptr->read16s(address);
+    break;
+  };
+  default:std::runtime_error("The operation in the alu is unsupported!");
+  }
 
 }
 
@@ -632,8 +702,6 @@ void cpu::reset() {
   // the default cpu mode is thread mode
   current_mode = THREAD_MODE;
 }
-
-
 
 void cpu::execute_op(uint16_t) {
 
