@@ -93,6 +93,7 @@ private:
     const uint8_t OPERATION_3_MASK = 0b0000000000000111;
     const uint8_t FLAG_MASK = 0b0000000000000001;
     const uint8_t FLAG_MASK_2 = 0b0000000000000011;
+    const uint8_t FLAG_MASK_4 = 0b0000000000001111;
 
     /**
      * This table is used to quickly figure out how many registers are used in an instruction like : ex. PUSH { Rlist }
@@ -174,7 +175,7 @@ private:
     mmu *mmu_ptr;
 
     /**
-     * Initializes the cpu bits set
+     * Initializes the cpu bits set - this is used to figure out how many registers are selected
      */
     void init_cpu_bits_set() {
         for (int i = 0; i < 256; i++) {
@@ -184,7 +185,6 @@ private:
                     count++;
                 }
             }
-
             cpu_bits_set[i] = count;
         }
     }
