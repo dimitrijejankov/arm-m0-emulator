@@ -95,6 +95,12 @@ private:
     const uint8_t FLAG_MASK_2 = 0b0000000000000011;
 
     /**
+     * This table is used to quickly figure out how many registers are used in an instruction like : ex. PUSH { Rlist }
+     * it maps the bit field that selects the registers to a number
+     */
+    int cpu_bits_set[256];
+
+    /**
      * returns the input value as a signed value
      * @param value - the value we want to have a signed reference
      * @return the signed reference
@@ -166,6 +172,22 @@ private:
      * The mmu (used to get all the instructions and the data)
      */
     mmu *mmu_ptr;
+
+    /**
+     * Initializes the cpu bits set
+     */
+    void init_cpu_bits_set() {
+        for (int i = 0; i < 256; i++) {
+            int count = 0;
+            for (int j = 0; j < 8; j++){
+                if (i & (1 << j)) {
+                    count++;
+                }
+            }
+
+            cpu_bits_set[i] = count;
+        }
+    }
 
     /**
      * Initializes the cpu to the state it is supposed to boot up
@@ -355,7 +377,7 @@ private:
      *
      * L - Load/Store bit 0 to store to memory, 1 to load from the memory
      * R - PC/LR bit 0 - Do not store LR/load PC, 1 - Store LR/Load PC
-     * Rlist - 7 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
+     * Rlist - 8 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
      * @param instr
      */
     void push_pop_registers(uint16_t instr);
@@ -366,7 +388,7 @@ private:
      *
      * L - Load/Store bit 0 if storing to memory, 1 if loading from memory
      * Rb - base register
-     * Rlist - 7 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
+     * Rlist - 8 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
      *
      * @param instr
      */
@@ -421,6 +443,27 @@ public:
     cpu(uint32_t flash_size, uint32_t sram_size);
 
 
+    /**
+     * Pushes the register
+     * @param instr
+     * @param address
+     * @param i
+     * @param i1
+     */
+    void push_reg(uint16_t instr, uint32_t &address, int i, int i1);
+
+    /**
+     * Pop the register
+     * @param instr
+     * @param address
+     * @param i
+     * @param i1
+     */
+    void pop_reg(uint16_t instr, uint32_t &address, int i, int i1);
+
+    void thumb_stm_reg(uint32_t instr, uint32_t &address, int val, int r);
+
+    void thumb_ldm_reg(uint32_t opcode, uint32_t &address, int val, int r);
 };
 
 
