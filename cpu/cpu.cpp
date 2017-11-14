@@ -743,7 +743,7 @@ void cpu::add_offset_to_stack_pointer(uint16_t instr) {
 
 void cpu::push_pop_registers(uint16_t instr) {
 
-  int flag = (instr >> 8) & 0b1 | (instr >> 1) & 0b10;
+  int flag = ((instr >> 8) & 0b1 ) | ( (instr >> 1) & 0b10);
 
   switch (flag) {
 
@@ -1055,11 +1055,39 @@ void cpu::conditional_branch(uint16_t instr) {
 }
 
 void cpu::unconditional_branch(uint16_t instr) {
-
+    
 }
 
 void cpu::long_branch_with_link(uint16_t instr) {
+    
+}
 
+void cpu::nop(uint16_t instr) {}
+
+void cpu::data_mem_sync_barier(uint32_t instr) {
+    
+    // TODO figure out what this does!
+    std::runtime_error("Data Memory Barrier and Data Synchronization Barrier not inpmelmented yet!");
+}
+
+void cpu::cpsi_d_e(uint16_t instr) {
+    std::runtime_error("CPSIE and CPSID are not imlemented yet!");
+}
+
+void cpu::supervisor_call(uint16_t instr){
+    std::runtime_error("The supervisor call instruction is not implemented yet!");
+}
+
+void cpu::breakpoint(uint16_t instr){
+    std::runtime_error("The breakpoint instruction is not imlemented yet!");
+}
+
+void cpu::wait_for_interupt_event(uint16_t instr){
+    std::runtime_error("Wait For Event and Wait For Interrupt are not imlemented yet!");
+}
+
+void cpu::send_event(uint16_t instr) {
+     std::runtime_error("Send Event is not imlemented yet!");
 }
 
 cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
@@ -1080,7 +1108,7 @@ void cpu::reset() {
   current_mode = THREAD_MODE;
 }
 
-void cpu::execute_op(uint16_t) {
+void cpu::execute_op(uint16_t instruction) {
 
 }
 
@@ -1104,11 +1132,12 @@ void cpu::run() {
 }
 
 void cpu::prefetch() {
-
+    cpu_prefetch[0] = mmu_ptr->read16(next_pc);
+    cpu_prefetch[1] = mmu_ptr->read16(next_pc + 2);
 }
 
 void cpu::prefetch_next() {
-
+    cpu_prefetch[1] = mmu_ptr->read16(next_pc + 2);
 }
 
 void cpu::push_reg(uint16_t instr, uint32_t &address, int val, int reg) {

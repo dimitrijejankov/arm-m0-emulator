@@ -131,7 +131,7 @@ private:
      *
      * Registers R0-R7 are the low general purpose registers
      *
-     * Registers R7-R8 are the the high general purpose registers
+     * Registers R7-R15 are the the high general purpose registers
      *
      * Register R13 is the stack pointer - The main stack pointer (MSP) used in HANDLER_MODE or if set in the
      * CONTROL_REGISTER during the THREAD_MODE. The processor stack (PSP) used only during the THREAD_MODE if
@@ -141,7 +141,7 @@ private:
      *
      * Register R15 is the program counter (PC)
      */
-    arm_register_t registers[15];
+    arm_register_t registers[16];
 
     /**
      * The pre-fetched instructions
@@ -202,7 +202,7 @@ private:
     /**
      * Execute the operation
      */
-    void execute_op(uint16_t);
+    void execute_op(uint16_t instruction);
 
     /**
      * Prefetch does a prefetch based on the programming counter
@@ -271,7 +271,7 @@ private:
      * H2 - 1 if the second register is a high register 0 otherwise
      * Rs/Hs - three least significant bits of the high or low register
      * Rd/Hd - three least significant bits of the high or low
-     * @param instr
+     * @param instr - the instruction 
      */
     void hi_register_operations_branch_exchange(uint16_t instr);
 
@@ -281,7 +281,7 @@ private:
      *
      * Rd - three bits of a low register
      * Word8 - the 8 bit word
-     * @param instr
+     * @param instr - the instruction 
      */
     void pc_relative_load(uint16_t instr);
 
@@ -294,7 +294,7 @@ private:
      * Ro - offset register, least significant 3 bit of a low register
      * Rb - base register, least significant 3 bit of a low register
      * Rd - source/destination register, least significant 3 bit of a low register
-     * @param instr
+     * @param instr - the instruction 
      */
     void load_store_with_register_offset(uint16_t instr);
 
@@ -307,7 +307,7 @@ private:
      * Ro - offset register, least significant 3 bit of a low register
      * Rb - base register, least significant 3 bit of a low register
      * Rd - source/destination register, least significant 3 bit of a low register
-     * @param instr
+     * @param instr - the instruction 
      */
     void load_store_sign_extended_byte_halfword(uint16_t instr);
 
@@ -320,7 +320,7 @@ private:
      * Offset5 - 5 bit Offset value
      * Rb - base register, least significant 3 bit of a low register
      * Rd - source/destination register, least significant 3 bit of a low register
-     * @param instr
+     * @param instr - the instruction 
      */
     void load_store_with_immediate_offset(uint16_t instr);
 
@@ -332,7 +332,7 @@ private:
      * Offset5 - 5 bit offset
      * Rb - base register, least significant 3 bit of a low register
      * Rd - destination register, least significant 3 bit of a low register
-     * @param instr
+     * @param instr - the instruction 
      */
     void load_store_halfword_immediate_offset(uint16_t instr);
 
@@ -344,7 +344,7 @@ private:
      * Rd - destination register, least significant 3 bit of a low register
      * Word8 - Immediate value
      *
-     * @param instr
+     * @param instr - the instruction 
      */
     void sp_relative_load_store(uint16_t instr);
 
@@ -356,7 +356,7 @@ private:
      * Rd - destination register, least significant 3 bit of a low register
      * Word8 - 8-bit unsigned constant
      *
-     * @param instr
+     * @param instr - the instruction 
      */
     void load_address(uint16_t instr);
 
@@ -367,7 +367,7 @@ private:
      * 0 - Offset is positive 1 - Offset is negative
      * SWord7 - 7-bit immediate value
      *
-     * @param instr
+     * @param instr - the instruction 
      */
     void add_offset_to_stack_pointer(uint16_t instr);
 
@@ -378,7 +378,7 @@ private:
      * L - Load/Store bit 0 to store to memory, 1 to load from the memory
      * R - PC/LR bit 0 - Do not store LR/load PC, 1 - Store LR/Load PC
      * Rlist - 8 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
-     * @param instr
+     * @param instr - the instruction 
      */
     void push_pop_registers(uint16_t instr);
 
@@ -390,7 +390,7 @@ private:
      * Rb - base register
      * Rlist - 8 bits the least significant bit is R0 the most significant bit is R7 [R7, ..., R0]
      *
-     * @param instr
+     * @param instr - the instruction 
      */
     void multiple_load_store(uint16_t instr);
 
@@ -400,7 +400,7 @@ private:
      *
      * Cond - 4 bit condition code
      * Soffset8 - 8-bit signed immediate
-     * @param instr
+     * @param instr - the instruction 
      */
     void conditional_branch(uint16_t instr);
 
@@ -409,7 +409,7 @@ private:
      * | 1 1 0 1 1 1 1 1 | Value8 |
      *
      * Value8 - Comment field
-     * @param instr
+     * @param instr - the instruction 
      */
     void software_interrupt(uint16_t instr);
 
@@ -418,7 +418,7 @@ private:
      * | 1 1 1 0 0 | Offset11 |
      *
      * Offset11 - 11 bits
-     * @param instr
+     * @param instr - the instruction 
      */
     void unconditional_branch(uint16_t instr);
 
@@ -429,10 +429,87 @@ private:
      * H - Low/high offset bit
      * Offset - 11 bit long branch and link offset high/low
      *
-     * @param instr
+     * @param instr - the instruction 
      */
     void long_branch_with_link(uint16_t instr);
 
+    /**
+     * Executes the nop instruction (just skips it);
+     * | 0 1 0 0 0 1 1 0 1 1 0 0 0 0 0 0 |
+     * @param instr - the instruction
+     */
+    void nop ( uint16_t instr );
+    
+    /**
+     * Data Synchronization Barrier or Data Memory Barrier - this thing is a 32 bit instruction
+     * | 1 1 1 1 0 0 1 1 1 0 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 0 F 1 1 1 1 |
+     * 
+     * F is 1 it means Data Memory Barrier (DMB)
+     * F is 0 it means Data Synchronization Barrier (DSB)
+     * @param instr - the instruction
+     */
+    void data_mem_sync_barier(uint32_t instr);
+    
+    /**
+     * Instruction Synchronization Barrier - this is a 32 bit instruction
+     * | 1 1 1 1 0 0 1 1 1 0 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 1 0 1 1 1 1 |
+     * 
+     * @param instr - the instruction
+     */
+    void instruction_sync_barier(uint32_t instr);
+    
+    /**
+     * Change Processor State, Disable or Enable  Interrupts
+     * | 1 0 1 1 0 1 1 0 0 1 1 E 0 0 1 0|
+     * E - is 0 means enabled (CPSIE)
+     * E - is 1 means disabled (CPSID)
+     * @param instr - the instruction
+     */
+    void cpsi_d_e(uint16_t instr);
+    
+    /**
+     * Supervisor Call
+     * |1 1 0 1 1 1 1 1| Comment8|
+     * TODO currently not implemented
+     * Comment8 - is the 8 bit comment field that the handler for the supervisor uses to determine what to do! 
+     * @param instr - the instruction (SVC)
+     */
+    void supervisor_call(uint16_t instr);
+    
+    /**
+     * The breakpoint instruction 
+     * TODO currently unimplemented
+     *  |1 1 0 1 1 1 1 1| Comment8 |
+     * 
+     * Comment8 - is the 8 bit comment field so that the breakpoint handler can figure out what to do with this
+     * @param instr - the instruction (BKPT)
+     */
+    void breakpoint(uint16_t instr);
+    
+    /**
+     * | 1 0 1 1 1 1 1 1 0 0 1 F 0 0 0 0 |
+     * TODO not implemented
+     * F - is 0 means Wait For Event
+     * F - is 1 means Wait For Interrupt
+     * 
+     * @param instr - the instruction
+     */
+    void wait_for_interupt_event(uint16_t instr);
+    
+    /**
+     * Send Event instruction
+     * TODO not implemented
+     * | 1 0 1 1 1 1 1 1 0 1 0 0 0 0 0 0 |
+     * 
+     * @param instr - the instruction
+     */
+    void send_event(uint16_t instr) ;
+    
+    /**
+     * 
+     */
+    void sign_zero_extend_byte_word(uint32_t instr);
+    
 public:
 
     /**
@@ -445,21 +522,21 @@ public:
 
     /**
      * Pushes the register
-     * @param instr
-     * @param address
-     * @param i
-     * @param i1
+     * @param instr - the instruction 
+     * @param address the address 
+     * @param val - the mask of the register
+     * @param reg - the register we want to to push
      */
-    void push_reg(uint16_t instr, uint32_t &address, int i, int i1);
+    void push_reg(uint16_t instr, uint32_t &address, int val, int reg);
 
     /**
      * Pop the register
-     * @param instr
-     * @param address
-     * @param i
-     * @param i1
+     * @param instr - the instruction 
+     * @param address - the address
+     * @param val - the mask of the register
+     * @param reg - the register we want to push
      */
-    void pop_reg(uint16_t instr, uint32_t &address, int i, int i1);
+    void pop_reg(uint16_t instr, uint32_t &address, int val, int reg);
 
     void thumb_stm_reg(uint32_t instr, uint32_t &address, int val, int r);
 
