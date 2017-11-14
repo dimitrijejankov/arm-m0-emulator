@@ -549,7 +549,9 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
     break;
   }
     // BX Rs
-  case 0b1100: {
+  case 0b1100:
+    // BX Hs
+  case 0b1101: {
 
     int base = (instr >> 3) & 15;
     registers[15].to_uint = registers[base].to_uint;
@@ -566,20 +568,27 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
     } else {
       throw std::runtime_error("Going to ARM state is not possible on a M0 cpu");
     }
-
-    break;
-  }
-    // BX Hs This is not defined by the standard and is not implemented
-  case 0b1101: {
-    throw std::runtime_error("BX Hs is undefined by the Thumb instruction set");
   }
     // BLX Rs this is used to
-  case 0b1110: {
-
-  }
-  // BLX Rs this is used to
+  case 0b1110:
+    // BLX Rs this is used to
   case 0b1111: {
+    int base = (instr >> 3) & 15;
+    registers[14].to_uint = registers[15].to_uint;
+    registers[15].to_uint = registers[base].to_uint;
 
+    if ((registers[15].to_uint & 1) != 0u) {
+      // we are in thumb state because the address had a 1 bit set
+      psr_register.t = true;
+
+      // remove the last bit of the address since it's not a valid one
+      registers[15].to_uint &= 0xFFFFFFFE;
+      next_pc = registers[15].to_uint;
+      registers[15].to_uint += 2;
+      prefetch();
+    } else {
+      throw std::runtime_error("Going to ARM state is not possible on a M0 cpu");
+    }
   }
   default:std::runtime_error("The operation in the alu is unsupported!");
   }
@@ -1062,23 +1071,61 @@ void cpu::conditional_branch(uint16_t instr) {
   }
 }
 
+
 void cpu::unconditional_branch(uint16_t instr) {
-    
+
+  int offset = (instr & 0x3FF) << 1;
+  if (instr & 0x0400){
+    offset |= 0xFFFFF800;
+  }
+
+  registers[15].to_uint += offset;
+  next_pc = registers[15].to_uint;
+  registers[15].to_uint += 2;
+
+  prefetch();
 }
 
-void cpu::long_branch_with_link(uint16_t instr) {
-    
+void cpu::long_branch_with_link(uint32_t instr) {
+
+  // grab the offset
+  int offset = (instr & 0x7FF);
+
+  // backward or forward
+  if((offset & 0xF000) != 0) {
+    registers[14].to_uint = registers[15].to_uint + (offset << 12);
+  }
+  else {
+    registers[14].to_uint = registers[15].to_uint + ((offset << 12) | 0xFF800000);
+  }
+
+  // grab the other part of the instruction
+  instr = instr >> 16;
+
+  offset = (instr & 0x7FF);
+  uint32_t temp = registers[15].to_uint-2;
+  registers[15].to_uint = (registers[14].to_uint + (offset << 1)) & 0xFFFFFFFE;
+  next_pc = registers[15].to_uint;
+  registers[15].to_uint += 2;
+  registers[14].to_uint = temp | 1;
+
+  prefetch();
 }
 
 void cpu::nop(uint16_t instr) {}
 
+
+void cpu::software_interrupt(uint16_t instr) {
+  std::runtime_error("Software interrupt is not implemented");
+}
+
 void cpu::data_mem_sync_barier(uint32_t instr) {
     // TODO figure out what this does!
-    std::runtime_error("Data Memory Barrier and Data Synchronization Barrier not inpmelmented yet!");
+    std::runtime_error("Data Memory Barrier and Data Synchronization Barrier not implemented yet!");
 }
 
 void cpu::cpsi_d_e(uint16_t instr) {
-    std::runtime_error("CPSIE and CPSID are not imlemented yet!");
+    std::runtime_error("CPSIE and CPSID are not implemented yet!");
 }
 
 void cpu::supervisor_call(uint16_t instr){
@@ -1086,15 +1133,15 @@ void cpu::supervisor_call(uint16_t instr){
 }
 
 void cpu::breakpoint(uint16_t instr){
-    std::runtime_error("The breakpoint instruction is not imlemented yet!");
+    std::runtime_error("The breakpoint instruction is not implemented yet!");
 }
 
 void cpu::wait_for_interupt_event(uint16_t instr){
-    std::runtime_error("Wait For Event and Wait For Interrupt are not imlemented yet!");
+    std::runtime_error("Wait For Event and Wait For Interrupt are not implemented yet!");
 }
 
 void cpu::send_event(uint16_t instr) {
-     std::runtime_error("Send Event is not imlemented yet!");
+     std::runtime_error("Send Event is not implemented yet!");
 }
 
 void cpu::instruction_sync_barier(uint32_t instr) {
@@ -1126,6 +1173,87 @@ void cpu::reset() {
 
 void cpu::execute_op(uint16_t instruction) {
 
+  if(instruction == 0b0100011011000000) {
+    nop(instruction);
+  }
+  else if((0b1111111111101111 & instruction) == 0b1011011001100010) {
+    cpsi_d_e(instruction);
+  }
+  else if((0b1111111111101111 & instruction) == 0b1011111100100000) {
+    wait_for_interupt_event(instruction);
+  }
+  else if(instruction == 0b1011111101000000) {
+    send_event(instruction);
+  }
+  else if((instruction & 0xFF00) == 0b1101111100000000) {
+    supervisor_call(instruction);
+  }
+  else if((instruction & 0xFF00) == 0b1101111000000000) {
+    breakpoint(instruction);
+  }
+  else if((instruction & 0xFF00) == 0b1101111100000000) {
+    software_interrupt(instruction);
+  }
+  else if((instruction & 0xFF00) == 0b1011000000000000) {
+    add_offset_to_stack_pointer(instruction);
+  }
+  else if((instruction & 0b1111001000000000) == 0b0101000000000000){
+    load_store_with_register_offset(instruction);
+  }
+  else if((instruction & 0b1111001000000000) == 0b0101001000000000) {
+    load_store_sign_extended_byte_halfword(instruction);
+  }
+  else if((instruction & 0b1111011000000000) == 0b1011010000000000) {
+    push_pop_registers(instruction);
+  }
+  else if((instruction & 0b1111110000000000) == 0b0100000000000000) {
+    alu_operations(instruction);
+  }
+  else if((instruction & 0b1111110000000000) == 0b0100010000000000) {
+    hi_register_operations_branch_exchange(instruction);
+  }
+  else if((instruction & 0b1111100000000000) == 0b0001100000000000) {
+    add_subtract(instruction);
+  }
+  else if((instruction & 0b1111100000000000) == 0b0100100000000000) {
+    pc_relative_load(instruction);
+  }
+  else if((instruction & 0b1111100000000000) == 0b0111000000000000) {
+    unconditional_branch(instruction);
+  }
+  else if((instruction & 0b1111100000000000) == 0b0111000000000000) {
+    unconditional_branch(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1000000000000000) {
+    load_store_halfword_immediate_offset(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1001000000000000) {
+    sp_relative_load_store(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1010000000000000) {
+    load_address(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1100000000000000) {
+    multiple_load_store(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1101000000000000) {
+    conditional_branch(instruction);
+  }
+  else if((instruction & 0b1111000000000000) == 0b1111000000000000) {
+    long_branch_with_link(instruction);
+  }
+  else if((instruction & 0b1110000000000000) == 0b1100000000000000) {
+    move_compare_add_subtract_immediate(instruction);
+  }
+  else if((instruction & 0b1110000000000000) == 0b0010000000000000) {
+    move_shifted_register(instruction);
+  }
+  else if((instruction & 0b1110000000000000) == 0b0110000000000000) {
+    load_store_with_immediate_offset(instruction);
+  }
+  else {
+    std::runtime_error("This instruction is unknown or unimplemented");
+  }
 }
 
 void cpu::run() {
@@ -1144,7 +1272,6 @@ void cpu::run() {
     execute_op(instr);
 
   } while (!holdState);
-
 }
 
 void cpu::prefetch() {
@@ -1183,3 +1310,4 @@ void cpu::thumb_ldm_reg(uint32_t instr, uint32_t &address, int val, int r) {
     address += 4;
   }
 }
+

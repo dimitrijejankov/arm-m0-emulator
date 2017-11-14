@@ -146,7 +146,7 @@ private:
     /**
      * The pre-fetched instructions
      */
-    uint32_t cpu_prefetch[2];
+    uint16_t cpu_prefetch[2];
 
     /**
      * Flag to indicate if the processor currently is in hold mode.
@@ -424,6 +424,7 @@ private:
 
     /**
      * Decodes the 16 bit instruction of the format
+     * TODO this is a 32 bit instruction currently I don't support them
      * | 1 1 1 1 | H | Offset |
      *
      * H - Low/high offset bit
@@ -431,7 +432,7 @@ private:
      *
      * @param instr - the instruction 
      */
-    void long_branch_with_link(uint16_t instr);
+    void long_branch_with_link(uint32_t instr);
 
     /**
      * Executes the nop instruction (just skips it);
@@ -443,7 +444,7 @@ private:
     /**
      * Data Synchronization Barrier or Data Memory Barrier - this thing is a 32 bit instruction
      * | 1 1 1 1 0 0 1 1 1 0 1 1 1 1 1 1 1 0 0 0 1 1 1 1 0 1 0 F 1 1 1 1 |
-     * 
+     * TODO 32 bit instruction
      * F is 1 it means Data Memory Barrier (DMB)
      * F is 0 it means Data Synchronization Barrier (DSB)
      * @param instr - the instruction
@@ -479,7 +480,7 @@ private:
     /**
      * The breakpoint instruction 
      * TODO currently unimplemented
-     *  |1 1 0 1 1 1 1 1| Comment8 |
+     *  |1 0 1 1 1 1 1 0| Comment8 |
      * 
      * Comment8 - is the 8 bit comment field so that the breakpoint handler can figure out what to do with this
      * @param instr - the instruction (BKPT)
