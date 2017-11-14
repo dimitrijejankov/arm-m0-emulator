@@ -506,9 +506,9 @@ private:
     void send_event(uint16_t instr) ;
     
     /**
-     * 
+     * Sign extend or zero extend a byte or half-word
      */
-    void sign_zero_extend_byte_word(uint32_t instr);
+    void sign_zero_extend_byte_halfword(uint32_t instr);
     
 public:
 

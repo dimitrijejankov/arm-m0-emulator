@@ -554,7 +554,7 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
     int base = (instr >> 3) & 15;
     registers[15].to_uint = registers[base].to_uint;
 
-    if (registers[15].to_uint & 1) {
+    if ((registers[15].to_uint & 1) != 0u) {
       // we are in thumb state because the address had a 1 bit set
       psr_register.t = true;
 
@@ -572,6 +572,14 @@ void cpu::hi_register_operations_branch_exchange(uint16_t instr) {
     // BX Hs This is not defined by the standard and is not implemented
   case 0b1101: {
     throw std::runtime_error("BX Hs is undefined by the Thumb instruction set");
+  }
+    // BLX Rs this is used to
+  case 0b1110: {
+
+  }
+  // BLX Rs this is used to
+  case 0b1111: {
+
   }
   default:std::runtime_error("The operation in the alu is unsupported!");
   }
@@ -690,7 +698,7 @@ void cpu::load_store_halfword_immediate_offset(uint16_t instr) {
 
   int flag = (instr >> 11) & 0b1; // grab the bit that is relevant
 
-  if (flag) {
+  if (flag != 0) {
     // STRH Rd, [Rs, Rn]
     uint32_t address = registers[(instr >> 3) & 7].to_uint + registers[(instr >> 6) & 7].to_uint;
     mmu_ptr->write16(address, registers[instr & 7].to_half_words.W0);
@@ -704,7 +712,7 @@ void cpu::load_store_halfword_immediate_offset(uint16_t instr) {
 void cpu::sp_relative_load_store(uint16_t instr) {
   int flag = (instr >> 11) & 0b1; // grab the bit that is relevant
 
-  if (flag) {
+  if (flag != 0) {
     // STR Rd, [SP, #Imm]
     uint32_t address = registers[(instr >> 3) & 7].to_uint + (((instr >> 6) & 31) << 2);
     mmu_ptr->write32(address, registers[instr & 7].to_uint);
@@ -718,7 +726,7 @@ void cpu::sp_relative_load_store(uint16_t instr) {
 void cpu::load_address(uint16_t instr) {
   int flag = (instr >> 11) & 0b1; // grab the bit that is relevant
 
-  if (flag) {
+  if (flag != 0) {
     // ADD Rd, PC, #Imm
     registers[(instr >> 8) & 7].to_uint = (registers[15].to_uint & 0xFFFFFFFC) + ((instr & 255) << 2);
   } else {
@@ -731,7 +739,7 @@ void cpu::add_offset_to_stack_pointer(uint16_t instr) {
   int flag = (instr >> 7) & 0b1; // grab the bit that is relevant
   int offset = (instr & 127) << 2;
 
-  if (flag) {
+  if (flag != 0) {
     // ADD SP, #Imm
     registers[13].to_uint += offset;
   } else {
@@ -858,7 +866,7 @@ void cpu::multiple_load_store(uint16_t instr) {
   // extract the relevant flag
   int flag = (instr >> 11) & 0b1;
 
-  if (flag) {
+  if (flag != 0) {
     // STMIA Rb!, { Rlist }
 
     // grab the Rb register
@@ -1065,7 +1073,6 @@ void cpu::long_branch_with_link(uint16_t instr) {
 void cpu::nop(uint16_t instr) {}
 
 void cpu::data_mem_sync_barier(uint32_t instr) {
-    
     // TODO figure out what this does!
     std::runtime_error("Data Memory Barrier and Data Synchronization Barrier not inpmelmented yet!");
 }
@@ -1089,6 +1096,15 @@ void cpu::wait_for_interupt_event(uint16_t instr){
 void cpu::send_event(uint16_t instr) {
      std::runtime_error("Send Event is not imlemented yet!");
 }
+
+void cpu::instruction_sync_barier(uint32_t instr) {
+    std::runtime_error("Instruction Synchronization Barrier is not implemented yet");
+}
+
+void cpu::sign_zero_extend_byte_halfword(uint32_t instr) {
+  std::runtime_error("Sign extend or zero extend is not implemented yet");
+}
+
 
 cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
 
