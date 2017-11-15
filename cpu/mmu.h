@@ -6,6 +6,7 @@
 #define EMULATOR_M0_MMU_H
 
 #include <vector>
+#include <peripheral.h>
 
 class mmu {
 private:
@@ -31,7 +32,7 @@ public:
 
   /**
    * Registers a peripheral to the mmu
-   * @param p
+   * @param p the peripheral we want to add
    */
   void register_peripheral(peripheral *p);
 
