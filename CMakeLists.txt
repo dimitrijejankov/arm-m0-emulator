@@ -17,10 +17,15 @@ include_directories("${PROJECT_SOURCE_DIR}/pheripherals")
 include_directories("${PROJECT_SOURCE_DIR}/tests")
 
 # create the main app
-set(SOURCE_FILES cpu/cpu.cpp cpu/cpu.cpp cpu/mmu.cpp)
+set(SOURCE_FILES cpu/mmu.cpp cpu/cpu.cpp cpu/cpu.cpp)
 add_executable(emulator_m0 main.cpp ${SOURCE_FILES})
 
-# create the tests
-add_executable(TestMMU tests/test-mmu_test.cpp ${SOURCE_FILES})
+# create the mmu test
+add_executable(TestMMU tests/test-mmu-test.cpp ${SOURCE_FILES})
 target_link_libraries(TestMMU gtest_main gtest ${CMAKE_THREAD_LIBS_INIT})
 gtest_add_tests(TARGET TestMMU)
+
+# create the cpu test
+add_executable(TestCPU tests/test-cpu.cpp ${SOURCE_FILES})
+target_link_libraries(TestCPU gtest_main gtest ${CMAKE_THREAD_LIBS_INIT})
+gtest_add_tests(TARGET TestCPU)

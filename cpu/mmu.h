@@ -8,6 +8,15 @@
 #include <vector>
 #include <peripheral.h>
 
+/**
+ * The regions start amd end values
+ */
+const uint32_t SRAM_BEGIN = 0x20000000;
+const uint32_t SRAM_END = 0x3FFFFFFF;
+
+const uint32_t CODE_BEGIN = 0x00000000;
+const uint32_t CODE_END = 0x1FFFFFFF;
+
 class mmu {
 private:
 

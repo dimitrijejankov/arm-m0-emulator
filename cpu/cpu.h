@@ -16,6 +16,11 @@ enum mode {
     HANDLER_MODE
 };
 
+/**
+ * The address where the programming counter starting value is set
+ */
+const uint32_t PC_INIT_ADDRESS = 0x00000004;
+
 struct psr {
 
     /**
@@ -86,11 +91,14 @@ class cpu {
 
 private:
 
+    /**
+     * Masks we use while decoding
+     */
     const uint8_t REGISTER_MASK = 0b0000000000000111;
     const uint8_t OFFSET_5_MASK = 0b0000000000011111;
     const uint8_t OFFSET_8_MASK = 0b0000000011111111;
     const uint8_t OPERATION_2_MASK = 0b0000000000000011;
-    const uint8_t OPERATION_3_MASK = 0b0000000000000111;
+    const uint8_t OPERATION_4_MASK = 0b0000000000000111;
     const uint8_t FLAG_MASK = 0b0000000000000001;
     const uint8_t FLAG_MASK_2 = 0b0000000000000011;
     const uint8_t FLAG_MASK_4 = 0b0000000000001111;
@@ -188,16 +196,6 @@ private:
             cpu_bits_set[i] = count;
         }
     }
-
-    /**
-     * Initializes the cpu to the state it is supposed to boot up
-     */
-    void reset();
-
-    /**
-     * Run the processor
-     */
-    void run();
 
     /**
      * Execute the operation
@@ -510,21 +508,11 @@ private:
      * Sign extend or zero extend a byte or half-word
      */
     void sign_zero_extend_byte_halfword(uint32_t instr);
-    
-public:
-
-    /**
-     * Creates an instance of the cpu
-     * @param flash_size the size of the flash size in bytes
-     * @param sram_size the sram size in bytes
-     */
-    cpu(uint32_t flash_size, uint32_t sram_size);
-
 
     /**
      * Pushes the register
-     * @param instr - the instruction 
-     * @param address the address 
+     * @param instr - the instruction
+     * @param address the address
      * @param val - the mask of the register
      * @param reg - the register we want to to push
      */
@@ -532,7 +520,7 @@ public:
 
     /**
      * Pop the register
-     * @param instr - the instruction 
+     * @param instr - the instruction
      * @param address - the address
      * @param val - the mask of the register
      * @param reg - the register we want to push
@@ -542,6 +530,48 @@ public:
     void thumb_stm_reg(uint32_t instr, uint32_t &address, int val, int r);
 
     void thumb_ldm_reg(uint32_t opcode, uint32_t &address, int val, int r);
+
+public:
+
+    /**
+     * Creates an instance of the cpu
+     * @param flash_size the size of the flash size in bytes
+     * @param sram_size the sram size in bytes
+     */
+    cpu(uint32_t flash_size, uint32_t sram_size);
+
+    /**
+     * Initializes the cpu to the state it is supposed to boot up
+     */
+    void reset();
+
+    /**
+     * Run the processor
+     */
+    void run();
+
+    /**
+     * Run the processor for N instructions
+     */
+    void run(size_t n_instr);
+
+    /**
+     * Returns the mmu connected to this cpu
+     * @return the mmu
+     */
+    mmu* get_mmu();
+
+    /**
+     * Returns the program status register
+     * @return the program status register
+     */
+    psr get_psr();
+
+    /**
+     * Returns the registers of this cpu
+     * @return the registers
+     */
+    arm_register_t* get_registers();
 };
 
 
