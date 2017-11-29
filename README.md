@@ -82,66 +82,65 @@ If you want to run your code you can do that from the command line. The the emul
 | NUM_INSTR | The number of instructions we want to run                                                         |
 
 > **Example output:** 
-> ***emulator_m0 -v 1024 examples/branches/code.bin 1024 examples/branches/sram.bin 3***
-> Running in the verbose mode
-> The starting PC : 58
-> Executing instruction :200c
-> Executing instruction :2101
-> Executing instruction :467a
+> ***emulator_m0 -v 1024 examples/branches/code.bin 1024 examples/branches/sram.bin 3*** <br />
+> Running in the verbose mode <br />
+> The starting PC : 58 <br />
+> Executing instruction :200c <br />
+> Executing instruction :2101 <br />
+> Executing instruction :467a <br />
 > 
-> The state of the CPU
-> The register 0 has value : c
-> The register 1 has value : 1
-> The register 2 has value : 60
-> The register 3 has value : 0
-> The register 4 has value : 0
-> The register 5 has value : 0
-> The register 6 has value : 0
-> The register 7 has value : 0
-> The register 8 has value : 0
-> The register 9 has value : 0
-> The register 10 has value : 0
-> The register 11 has value : 0
-> The register 12 has value : 0
-> The register 13 has value : 0
-> The register 14 has value : 0
-> 
-> T : 1
-> C : 0
-> N : 0
-> V : 0
+> The state of the CPU <br />
+> The register 0 has value : c <br />
+> The register 1 has value : 1 <br />
+> The register 2 has value : 60 <br />
+> The register 3 has value : 0 <br />
+> The register 4 has value : 0 <br />
+> The register 5 has value : 0 <br />
+> The register 6 has value : 0 <br />
+> The register 7 has value : 0 <br />
+> The register 8 has value : 0 <br />
+> The register 9 has value : 0 <br />
+> The register 10 has value : 0 <br />
+> The register 11 has value : 0 <br />
+> The register 12 has value : 0 <br />
+> The register 13 has value : 0 <br />
+> The register 14 has value : 0 <br />
+>  <br /> <br />
+> T : 1 <br />
+> C : 0 <br />
+> N : 0 <br />
+> V : 0 <br />
 > 
 Compiling
 -------------------
 
 The compiling is handled by CMake. The required version of CMake is 3.10, because it uses the new google test feature to specify the tests. The only dependency of the project is google test framework. You can find in the following link
-https://github.com/google/googletest
+https://github.com/google/googletest 
 
-> **Compiling commands** 
->  cd arm-m0-emulator
->  cmake .
->  make --target arm-m0-emulator
+> **Compiling commands** <br />
+>  cd arm-m0-emulator <br />
+>  cmake . <br />
+>  make --target arm-m0-emulator <br />
  
 Running the Tests
 -------------
 
 In order to run the tests you first need to compile them with CMake.
-> **Compiling commands**
-> cd arm-m0-emulator
-> cmake . --build ./build
-> make --target TestCPU
-> make --target TestMMU
+> **Compiling commands** <br />
+> cd arm-m0-emulator <br />
+> cmake . --build ./build <br />
+> make --target TestCPU <br />
+> make --target TestMMU <br />
 
 Then go to your build directory and run :
-> **Test Commands**
-> cd build
-> ./TestCPU
-> ./TestMMU
+> **Test Commands** <br />
+> cd build <br />
+> ./TestCPU <br />
+> ./TestMMU <br />
 
 Directory Structure
 -------------
 Below is the directory structure of the project :
-
 | Directory    | Description                                                                       |
 |--------------|-----------------------------------------------------------------------------------|
 | cpu          | This directory contains the code of the cpu, with the instructions                |
