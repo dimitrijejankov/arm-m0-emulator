@@ -141,8 +141,9 @@ Then go to your build directory and run :
 Directory Structure
 -------------
 Below is the directory structure of the project :
+
 | Directory    | Description                                                                       |
 |--------------|-----------------------------------------------------------------------------------|
 | cpu          | This directory contains the code of the cpu, with the instructions                |
 | pheripherals | This directory contains the pheripherals, currently only the abstract pheripheral |
-| tests        | This directory contains the google tests                                          |
+| tests        | This directory contains the google tests                                          |                                      |
