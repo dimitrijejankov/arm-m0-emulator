@@ -4,6 +4,7 @@
 
 #include <exception>
 #include <stdexcept>
+#include <iostream>
 #include "cpu.h"
 #include "util.h"
 
@@ -1269,6 +1270,17 @@ cpu::cpu(uint32_t flash_size, uint32_t sram_size) {
     init_cpu_bits_set();
 }
 
+cpu::cpu(uint8_t *flash, uint8_t *sram) {
+    // init the mmu by allocating the flash region and the sram region
+    mmu_ptr = new mmu(flash, sram);
+
+    // resets the cpu
+    reset();
+
+    // initializes the cpu bits set
+    init_cpu_bits_set();
+}
+
 void cpu::reset() {
 
     // the default cpu mode is thread mode
@@ -1279,6 +1291,7 @@ void cpu::reset() {
 
     // initializes the programming counter
     next_pc = mmu_ptr->read32(PC_INIT_ADDRESS);
+
     registers[15].to_uint = next_pc + 2;
 }
 
@@ -1307,8 +1320,33 @@ void cpu::run(size_t n_instr) {
     do {
 
         uint16_t instr = cpu_prefetch[0];
-
         cpu_prefetch[0] = cpu_prefetch[1];
+
+        next_pc = registers[15].to_uint;
+        registers[15].to_uint += 2;
+
+        // fetch the next instruction
+        prefetch_next();
+
+        execute_op(instr);
+
+    } while (!holdState && --n_instr);
+}
+
+void cpu::verbose_run(size_t n_instr) {
+
+    // print out the starting PC
+    std::cout << std::hex << "The starting PC : " << next_pc << std::endl;
+
+    // prefetch the starting instructions
+    prefetch();
+
+    do {
+
+        uint16_t instr = cpu_prefetch[0];
+        cpu_prefetch[0] = cpu_prefetch[1];
+
+        std::cout << "Executing instruction :" << std::hex << instr << std::endl;
 
         next_pc = registers[15].to_uint;
         registers[15].to_uint += 2;
@@ -1334,5 +1372,21 @@ psr cpu::get_psr() {
     return psr_register;
 }
 
+void cpu::print() {
 
+    std::cout << std::endl << "The state of the CPU" << std::endl;
 
+    // show the registers
+    for(int i = 0; i < 15; ++i) {
+        std::cout << "The register " + std::to_string(i) + " has value : " << std::hex << registers[i].to_uint << std::endl;
+    }
+
+    // split it
+    std::cout << std::endl;
+
+    // the psr register values
+    std::cout << "T : " << psr_register.t << std::endl;
+    std::cout << "C : " << psr_register.c << std::endl;
+    std::cout << "N : " << psr_register.n << std::endl;
+    std::cout << "V : " << psr_register.v << std::endl;
+}

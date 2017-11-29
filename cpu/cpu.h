@@ -541,6 +541,13 @@ public:
     cpu(uint32_t flash_size, uint32_t sram_size);
 
     /**
+     * Creates an instance of the cpu
+     * @param the flash memory we want to use
+     * @param the sram memory we want to use
+     */
+    cpu(uint8_t *flash, uint8_t *sram);
+
+    /**
      * Initializes the cpu to the state it is supposed to boot up
      */
     void reset();
@@ -554,6 +561,12 @@ public:
      * Run the processor for N instructions
      */
     void run(size_t n_instr);
+
+    /**
+     * Run the processor for N instructions in verbose mode
+     * The verbose mode prints out the starting PC and the instructions that are being run
+     */
+    void verbose_run(size_t n_instr);
 
     /**
      * Returns the mmu connected to this cpu
@@ -572,6 +585,11 @@ public:
      * @return the registers
      */
     arm_register_t* get_registers();
+
+    /**
+     * Prints cpu status
+     */
+    void print();
 };
 
 
