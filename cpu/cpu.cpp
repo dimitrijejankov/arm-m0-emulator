@@ -935,7 +935,7 @@ void cpu::conditional_branch(uint16_t instr) {
 
     switch (flag) {
 
-        case 0000 : {
+        case 0b0000 : {
             // BEQ label
             if (psr_register.z) {
                 registers[15].to_uint += offset << 1;
@@ -945,7 +945,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0001 : {
+        case 0b0001 : {
             // BNE label
             if (!psr_register.z) {
                 registers[15].to_uint += offset << 1;
@@ -955,7 +955,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0010 : {
+        case 0b0010 : {
             // BCS label
             if (psr_register.c) {
                 registers[15].to_uint += offset << 1;
@@ -965,7 +965,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0011 : {
+        case 0b0011 : {
             // BCC label
             if (!psr_register.c) {
                 registers[15].to_uint += offset << 1;
@@ -975,7 +975,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0100 : {
+        case 0b0100 : {
             // BMI label
             if (psr_register.n) {
                 registers[15].to_uint += offset << 1;
@@ -985,7 +985,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0101 : {
+        case 0b0101 : {
             // BPL label
             if (!psr_register.n) {
                 registers[15].to_uint += offset << 1;
@@ -996,7 +996,7 @@ void cpu::conditional_branch(uint16_t instr) {
 
             break;
         }
-        case 0110 : {
+        case 0b0110 : {
             // BVS label
             if (psr_register.v) {
                 registers[15].to_uint += offset << 1;
@@ -1006,7 +1006,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 0111 : {
+        case 0b0111 : {
             // BVC label
             if (!psr_register.v) {
                 registers[15].to_uint += offset << 1;
@@ -1016,7 +1016,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1000 : {
+        case 0b1000 : {
             // BHI label
             if (psr_register.c && !psr_register.z) {
                 registers[15].to_uint += offset << 1;
@@ -1026,7 +1026,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1001 : {
+        case 0b1001 : {
             //  BLS label
             if (!psr_register.c || psr_register.z) {
                 registers[15].to_uint += offset << 1;
@@ -1036,7 +1036,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1010 : {
+        case 0b1010 : {
             // BGE label
             if (psr_register.n == psr_register.v) {
                 registers[15].to_uint += offset << 1;
@@ -1046,7 +1046,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1011 : {
+        case 0b1011 : {
             // BLT label
             if (psr_register.n != psr_register.v) {
                 registers[15].to_uint += offset << 1;
@@ -1056,7 +1056,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1100 : {
+        case 0b1100 : {
             // BGT label
             if (!psr_register.z && (psr_register.n == psr_register.v)) {
                 registers[15].to_uint += offset << 1;
@@ -1066,7 +1066,7 @@ void cpu::conditional_branch(uint16_t instr) {
             }
             break;
         }
-        case 1101 : {
+        case 0b1101 : {
             // BLE label
             if (psr_register.z || (psr_register.n != psr_register.v)) {
                 registers[15].to_uint += offset << 1;
